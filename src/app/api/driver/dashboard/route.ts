@@ -131,6 +131,22 @@ export async function GET() {
 
     const settlementSummary = calculateDriverSettlementSummary(driver.id, db);
 
+    // 7. Driver's leaves and bunk records (Read-Only)
+    const myLeaves = (db.driverLeaves || [])
+      .filter((l) => l.driverId === driver.id)
+      .map((l) => ({
+        id: l.id,
+        date: l.date,
+        leaveType: l.leaveType,
+        reason: l.reason,
+        deductionAmount: l.deductionAmount,
+        deductedInSalaryMonth: l.deductedInSalaryMonth,
+        status: l.status,
+        notes: l.notes,
+        recordedBy: l.recordedBy,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+
     return NextResponse.json({
       driver: {
         id: driver.id,
@@ -154,7 +170,9 @@ export async function GET() {
       salary: {
         records: salaryRecords,
         payments: paymentsReceived,
+        leaves: myLeaves,
       },
+      leaves: myLeaves,
       settlementSummary,
       notifications,
     });

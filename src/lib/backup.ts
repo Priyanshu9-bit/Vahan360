@@ -54,6 +54,7 @@ export function generateFullTxtBackup(db: DatabaseSchema): { content: string; fi
     maintenanceRecords: db.maintenanceRecords.length,
     challans: db.challans.length,
     notifications: db.notifications.length,
+    driverLeaves: (db.driverLeaves || []).length,
     auditLogs: db.auditLogs.length,
   };
 
@@ -315,6 +316,9 @@ export function generateFullTxtBackup(db: DatabaseSchema): { content: string; fi
     '--- SECTION: NOTIFICATIONS ---',
     JSON.stringify(db.notifications, null, 2),
     '',
+    '--- SECTION: DRIVER_LEAVES ---',
+    JSON.stringify(db.driverLeaves || [], null, 2),
+    '',
     '--- SECTION: AUDIT_LOGS ---',
     JSON.stringify(db.auditLogs.slice(0, 100), null, 2),
     '',
@@ -500,6 +504,28 @@ export function generateTransactionsNote(db: DatabaseSchema): { content: string;
       refNo: sp.referenceNo || sp.id,
       status: 'Paid & Disbursed',
       notes: sp.notes || `Driver ${sp.paymentType} disbursement`,
+    });
+  }
+
+  // 4.5 Driver Bunks & Unexcused Leaves
+  for (const l of db.driverLeaves || []) {
+    const drv = db.drivers.find((d) => d.id === l.driverId);
+    const rawTime = new Date(l.date).getTime() || 0;
+
+    allTxns.push({
+      date: l.date,
+      rawTime,
+      flow: l.status === 'penalty_applied' ? 'CASH OUT (-)' : 'PENALTY DUE',
+      category: `Driver Bunk / Absence (${l.leaveType.toUpperCase()})`,
+      title: `Driver Bunk / Absence: ${drv ? drv.fullName : 'Driver'} (-Rs. ${l.deductionAmount})`,
+      amount: l.deductionAmount || 0,
+      party: drv ? drv.fullName : 'Driver Staff',
+      vehicle: drv?.assignedVehicleId ? (db.vehicles.find((v) => v.id === drv.assignedVehicleId)?.regNumber || 'Assigned') : 'General',
+      driver: drv ? drv.fullName : 'Driver Staff',
+      paymentMode: `Payroll Deduction (${l.deductedInSalaryMonth})`,
+      refNo: l.id,
+      status: l.status === 'penalty_applied' ? 'Salary Cut Applied' : 'Waived',
+      notes: l.reason ? `Reason: ${l.reason} | Deducted in ${l.deductedInSalaryMonth}` : `Unexcused absence on ${l.date}`,
     });
   }
 
@@ -760,7 +786,8 @@ export function performServerBackup(type: 'scheduled_daily' | 'manual_txt'): Bac
       db.salaryRecords.length +
       db.salaryPayments.length +
       db.maintenanceRecords.length +
-      db.challans.length,
+      db.challans.length +
+      (db.driverLeaves || []).length,
     documentCount: db.documents.length,
     fileSize,
     status: 'success',
@@ -863,6 +890,7 @@ export function validateTxtBackup(fileContent: string): BackupValidationResult {
   const maintenanceRecords = extractSection('MAINTENANCE') || [];
   const challans = extractSection('CHALLANS') || [];
   const notifications = extractSection('NOTIFICATIONS') || [];
+  const driverLeaves = extractSection('DRIVER_LEAVES') || [];
 
   counts.vehicles = vehicles.length;
   counts.documents = documents.length;
@@ -900,6 +928,7 @@ export function validateTxtBackup(fileContent: string): BackupValidationResult {
       maintenanceRecords,
       challans,
       notifications,
+      driverLeaves,
     },
     errors,
   };
@@ -940,6 +969,7 @@ export function restoreFromValidatedBackup(
     if (data.salaryPayments) db.salaryPayments = data.salaryPayments;
     if (data.maintenanceRecords) db.maintenanceRecords = data.maintenanceRecords;
     if (data.challans) db.challans = data.challans;
+    if (data.driverLeaves) db.driverLeaves = data.driverLeaves;
 
     // Ensure the admin user remains valid
     if (currentAdmin) {

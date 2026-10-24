@@ -240,6 +240,8 @@ export interface DriverSalaryRecord {
   baseSalary: number;
   tripAllowance: number;
   advancesDeducted: number;
+  bunkDays?: number; // Number of bunk/absent days
+  bunkDeductions?: number; // Salary cut amount for bunks/leaves
   otherDeductions: number;
   bonus: number;
   netPayable: number;
@@ -247,6 +249,24 @@ export interface DriverSalaryRecord {
   balanceDue: number;
   status: 'draft' | 'pending' | 'partially_paid' | 'paid';
   notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LeaveType = 'unexcused_bunk' | 'leave' | 'sick' | 'half_day';
+export type LeaveStatus = 'penalty_applied' | 'approved' | 'waived';
+
+export interface DriverLeaveRecord {
+  id: string;
+  driverId: string;
+  date: string; // YYYY-MM-DD
+  leaveType: LeaveType;
+  reason?: string;
+  deductionAmount: number; // Salary deduction cut in INR
+  deductedInSalaryMonth: string; // YYYY-MM
+  status: LeaveStatus;
+  notes?: string;
+  recordedBy?: string; // admin user name/id
   createdAt: string;
   updatedAt: string;
 }
@@ -371,6 +391,7 @@ export interface DatabaseSchema {
   maintenanceRecords: MaintenanceRecord[];
   challans: Challan[];
   notifications: Notification[];
+  driverLeaves: DriverLeaveRecord[];
   backups: BackupRecord[];
   auditLogs: AuditLog[];
 }

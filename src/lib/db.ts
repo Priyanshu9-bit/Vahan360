@@ -86,6 +86,7 @@ export function getCleanEmptyDatabase(): DatabaseSchema {
     maintenanceRecords: [],
     challans: [],
     notifications: [],
+    driverLeaves: [],
     backups: [],
     auditLogs: [],
   };
@@ -928,6 +929,7 @@ export function getDemoDatabase(): DatabaseSchema {
     maintenanceRecords,
     challans,
     notifications,
+    driverLeaves: [],
     backups,
     auditLogs,
   };
@@ -994,7 +996,10 @@ export function getDatabase(): DatabaseSchema {
   } catch {}
 
   // 3. If in-memory cache exists, return it
-  if (cachedDb) return cachedDb;
+  if (cachedDb) {
+    if (!cachedDb.driverLeaves) cachedDb.driverLeaves = [];
+    return cachedDb;
+  }
 
   // 4. Create initial clean database if no database file exists yet
   cachedDb = getCleanEmptyDatabase();

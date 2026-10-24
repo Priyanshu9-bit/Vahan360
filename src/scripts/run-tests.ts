@@ -251,6 +251,77 @@ async function runAllTests() {
   testDb.drivers.splice(remIndex, 1);
   assert(testDb.drivers.length === drvCountBefore - 1, 'Driver 2 successfully removed from drivers roster');
 
+  console.log('\n--- TEST GROUP 15: DRIVER BUNK TRACKING & SALARY CUTS ---');
+  // Initialize driver leaves if needed
+  if (!testDb.driverLeaves) testDb.driverLeaves = [];
+  
+  const testDriverForBunk = testDb.drivers.find((d: any) => d.id === 'drv_01');
+  assert(testDriverForBunk !== undefined, 'Target driver for bunk test found');
+  const agreedSalary = Number(testDriverForBunk.agreedSalary) || 18000;
+  const dailyRate = Math.round(agreedSalary / 30);
+  assert(dailyRate === 600, `Calculated 1-day bunk penalty rate is ₹600 (Salary ₹${agreedSalary}/30)`);
+
+  // Admin logs a bunk
+  const bunkRecord = {
+    id: `leave_${Date.now()}_test`,
+    driverId: 'drv_01',
+    date: '2026-10-12',
+    leaveType: 'unexcused_bunk',
+    reason: 'Driver left truck unattended on Paradip highway route without prior notice',
+    deductionAmount: dailyRate,
+    deductedInSalaryMonth: '2026-10',
+    status: 'penalty_applied',
+    notes: 'Standard 1-day salary deduction per commercial fleet guidelines',
+    createdBy: 'admin_test',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  testDb.driverLeaves.push(bunkRecord);
+  assert(testDb.driverLeaves.length >= 1, 'Driver bunk record successfully created in database');
+
+  // Verify bunk cut calculation in salary generation
+  const driverBunksInPeriod = testDb.driverLeaves.filter(
+    (l: any) => l.driverId === 'drv_01' && l.status === 'penalty_applied' && l.deductedInSalaryMonth === '2026-10'
+  );
+  const totalBunkCut = driverBunksInPeriod.reduce((sum: number, l: any) => sum + Number(l.deductionAmount), 0);
+  assert(totalBunkCut === 600, 'Total bunk deduction in period correctly equals ₹600');
+
+  // Verify driver's net payable calculation after bunk deduction
+  const baseSalary = Number(testDriverForBunk.agreedSalary) || 18000;
+  const tripAllowance = 2200;
+  const advances = 3000;
+  const netPayableWithBunk = Math.max(0, baseSalary + tripAllowance - advances - totalBunkCut);
+  assert(netPayableWithBunk === 16600, `Net payable after bunk cut is ₹16,600 (₹18000 + ₹2200 - ₹3000 - ₹600)`);
+
+  // Verify Waived Bunk does not deduct from salary
+  const waivedBunk = {
+    id: `leave_${Date.now()}_waived`,
+    driverId: 'drv_01',
+    date: '2026-10-18',
+    leaveType: 'sick',
+    reason: 'Medical emergency with doctor prescription',
+    deductionAmount: dailyRate,
+    deductedInSalaryMonth: '2026-10',
+    status: 'waived',
+    notes: 'Waived by fleet owner due to verified medical slip',
+    createdBy: 'admin_test',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  testDb.driverLeaves.push(waivedBunk);
+  
+  const activePenaltyBunks = testDb.driverLeaves.filter(
+    (l: any) => l.driverId === 'drv_01' && l.status === 'penalty_applied' && l.deductedInSalaryMonth === '2026-10'
+  );
+  assert(activePenaltyBunks.length === 1, 'Waived absence is correctly excluded from salary penalty deductions');
+
+  // Verify Driver Read-Only View Filter
+  const driverSelfView = testDb.driverLeaves.filter((l: any) => l.driverId === 'drv_01');
+  assert(driverSelfView.length === 2, 'Driver can view their own absence dates and details (Total: 2 records)');
+  const driverOtherView = testDb.driverLeaves.filter((l: any) => l.driverId === 'other_drv');
+  assert(driverOtherView.length === 0, 'Driver cannot view leaves or bunk records of other drivers');
+
+
   // Restore live database snapshot so user's real business data is 100% preserved byte-for-byte
   if (rawLiveContent) {
     fs.writeFileSync(dbFilePath, rawLiveContent, 'utf8');

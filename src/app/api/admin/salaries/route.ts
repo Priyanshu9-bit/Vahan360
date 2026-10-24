@@ -19,6 +19,9 @@ export async function GET(request: Request) {
       const driver = db.drivers.find((d) => d.id === r.driverId);
       const vehicle = driver?.assignedVehicleId ? db.vehicles.find((v) => v.id === driver.assignedVehicleId) : null;
       const payments = db.salaryPayments.filter((p) => p.salaryRecordId === r.id);
+      const driverLeaves = (db.driverLeaves || []).filter(
+        (l) => l.driverId === r.driverId && (l.deductedInSalaryMonth === r.periodMonth || l.date.startsWith(r.periodMonth))
+      );
       return {
         ...r,
         driverName: driver?.fullName || 'Unknown',
@@ -26,6 +29,7 @@ export async function GET(request: Request) {
         driverDlNumber: driver?.dlNumber || '',
         vehicleReg: vehicle?.regNumber || 'General Fleet',
         payments,
+        driverLeaves,
       };
     });
 
@@ -92,8 +96,19 @@ export async function POST(request: Request) {
           )
           .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
+        // Calculate bunks and leaves deductions in this month
+        const bunksInMonth = (db.driverLeaves || []).filter(
+          (l) =>
+            l.driverId === driver.id &&
+            (l.deductedInSalaryMonth === periodMonth || l.date.startsWith(periodMonth)) &&
+            l.status === 'penalty_applied'
+        );
+        const bunkDays = bunksInMonth.length;
+        const bunkDeductions = bunksInMonth.reduce((sum, l) => sum + (Number(l.deductionAmount) || 0), 0);
+
         const baseSalary = Number(driver.agreedSalary) || 0;
-        const netPayable = Math.max(0, baseSalary + tripAllowance - advancesInMonth);
+        const otherDeductions = bunkDeductions;
+        const netPayable = Math.max(0, baseSalary + tripAllowance - advancesInMonth - otherDeductions);
 
         const newRecord: DriverSalaryRecord = {
           id: `sal_rec_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
@@ -103,13 +118,15 @@ export async function POST(request: Request) {
           baseSalary,
           tripAllowance,
           advancesDeducted: advancesInMonth,
-          otherDeductions: 0,
+          bunkDays,
+          bunkDeductions,
+          otherDeductions,
           bonus: 0,
           netPayable,
           paidAmount: 0,
           balanceDue: netPayable,
           status: 'pending',
-          notes: `Automated salary statement for ${periodMonth}`,
+          notes: `Automated salary statement for ${periodMonth}${bunkDays > 0 ? ` (Includes ${bunkDays} bunks: -₹${bunkDeductions})` : ''}`,
           createdAt: now,
           updatedAt: now,
         };
