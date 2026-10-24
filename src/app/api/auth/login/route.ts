@@ -37,10 +37,18 @@ function resetAttempts(key: string) {
 
 export async function POST(request: Request) {
   try {
-    const { identifier, password } = await request.json();
+    const { identifier, password, pin, loginMode } = await request.json();
 
-    if (!identifier || !password) {
-      return NextResponse.json({ error: 'Please enter your email/phone and password.' }, { status: 400 });
+    if (!identifier) {
+      return NextResponse.json({ error: 'Please enter your email or registered mobile number.' }, { status: 400 });
+    }
+
+    if (loginMode === 'pin' && !pin) {
+      return NextResponse.json({ error: 'Please enter your 6-digit Master Security PIN.' }, { status: 400 });
+    }
+
+    if (loginMode !== 'pin' && !password && !pin) {
+      return NextResponse.json({ error: 'Please enter your password or Security PIN.' }, { status: 400 });
     }
 
     const cleanId = identifier.trim().toLowerCase();
@@ -85,10 +93,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials or account not found.' }, { status: 401 });
     }
 
-    const isMatch = bcrypt.compareSync(password, user.passwordHash);
-    if (!isMatch) {
-      recordFailedAttempt(cleanId);
-      return NextResponse.json({ error: 'Invalid password. Please try again.' }, { status: 401 });
+    // Authenticate via PIN or Password
+    let isMatch = false;
+    if (loginMode === 'pin' || (pin && !password)) {
+      if (!user.securityPinHash) {
+        return NextResponse.json(
+          { error: 'Security PIN has not been set yet. Please sign in with your password and configure your PIN in Settings.' },
+          { status: 400 }
+        );
+      }
+      isMatch = bcrypt.compareSync(String(pin).trim(), user.securityPinHash);
+      if (!isMatch) {
+        recordFailedAttempt(cleanId);
+        return NextResponse.json({ error: 'Incorrect 6-digit Security PIN. Please try again.' }, { status: 401 });
+      }
+    } else {
+      isMatch = bcrypt.compareSync(password, user.passwordHash);
+      if (!isMatch) {
+        // Also check if user entered their PIN in the password box by mistake
+        if (user.securityPinHash && bcrypt.compareSync(password.trim(), user.securityPinHash)) {
+          isMatch = true;
+        } else {
+          recordFailedAttempt(cleanId);
+          return NextResponse.json({ error: 'Invalid password. Please try again.' }, { status: 401 });
+        }
+      }
     }
 
     // Reset failed attempts upon successful authentication

@@ -239,6 +239,10 @@ async function runAllTests() {
   // Restore live database snapshot so user's real business data is 100% preserved byte-for-byte
   if (rawLiveContent) {
     fs.writeFileSync(dbFilePath, rawLiveContent, 'utf8');
+    const autosavePath = path.join(process.cwd(), 'data', 'backups', 'vahan360_autosave.json');
+    try {
+      fs.writeFileSync(autosavePath, rawLiveContent, 'utf8');
+    } catch {}
   } else {
     saveDatabase(liveDbSnapshot);
   }

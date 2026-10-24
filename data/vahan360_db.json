@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-10-24T13:40:17.173Z",
+  "updatedAt": "2026-10-24T13:48:17.289Z",
   "settings": {
     "id": "biz_01",
     "businessName": "Nayak Transport",
@@ -30,22 +30,237 @@
       "createdAt": "2026-10-24T09:37:35.017Z",
       "updatedAt": "2026-10-24T13:40:17.168Z",
       "securityPinHash": "$2b$10$EVCMB/dpECZaTVxabbPtN.wJUa/V2FYh0KNB1dlB/wu5hezjZgfga"
+    },
+    {
+      "id": "usr_drv_1792849546960",
+      "name": "xc v",
+      "email": "driver_1792849546960@vahan360.local",
+      "phone": "650098065",
+      "role": "driver",
+      "status": "active",
+      "passwordHash": "$2b$10$vI8Zh4shYn.x9P6lomAsKejm80uTLo0xvnh9oOPhnoTa1BZAxhRu.",
+      "createdAt": "2026-10-24T13:45:46.960Z",
+      "updatedAt": "2026-10-24T13:45:46.960Z"
+    },
+    {
+      "id": "usr_drv_1792849697285",
+      "name": "asd",
+      "email": "driver_1792849697205@vahan360.local",
+      "phone": "789456123",
+      "role": "driver",
+      "status": "pending_approval",
+      "passwordHash": "$2b$10$DgNn15jI1O9gwi3PQPev6OcrNLD/YTZI7uXvRebBfHoN3yeMY7tIm",
+      "createdAt": "2026-10-24T13:48:17.285Z",
+      "updatedAt": "2026-10-24T13:48:17.285Z"
     }
   ],
-  "vehicles": [],
+  "vehicles": [
+    {
+      "id": "veh_1792849513753",
+      "regNumber": "XDCFVGBH",
+      "name": "cv bn",
+      "manufacturer": "Mahindra",
+      "model": "",
+      "vehicleType": "Pickup Truck",
+      "regDate": "2026-10-24",
+      "chassisNumber": "",
+      "engineNumber": "",
+      "fuelType": "Diesel",
+      "currentOdometer": 214651,
+      "purchaseDate": "2026-10-24",
+      "purchasePrice": 0,
+      "status": "active",
+      "notes": "",
+      "createdAt": "2026-10-24T13:45:13.753Z",
+      "updatedAt": "2026-10-24T13:45:13.753Z"
+    }
+  ],
   "documents": [],
-  "drivers": [],
-  "customers": [],
-  "trips": [],
+  "drivers": [
+    {
+      "id": "drv_1792849546960",
+      "userId": "usr_drv_1792849546960",
+      "fullName": "xc v",
+      "phone": "650098065",
+      "email": "driver_1792849546960@vahan360.local",
+      "address": "",
+      "dlNumber": "ZXCVBNM,",
+      "dlExpiryDate": "2026-11-06",
+      "emergencyContact": "",
+      "emergencyPhone": "",
+      "joiningDate": "2026-10-24",
+      "salaryType": "monthly",
+      "agreedSalary": 18000,
+      "accountStatus": "approved",
+      "notes": "",
+      "createdAt": "2026-10-24T13:45:46.960Z",
+      "updatedAt": "2026-10-24T13:45:46.960Z"
+    },
+    {
+      "id": "drv_1792849697285",
+      "userId": "usr_drv_1792849697285",
+      "fullName": "asd",
+      "phone": "789456123",
+      "email": "driver_1792849697205@vahan360.local",
+      "address": "",
+      "dlNumber": "OD02-3216549877",
+      "dlExpiryDate": "2029-11-02",
+      "emergencyContact": "Not specified",
+      "emergencyPhone": "789456123",
+      "joiningDate": "2026-10-24",
+      "salaryType": "monthly",
+      "agreedSalary": 0,
+      "accountStatus": "pending_approval",
+      "notes": "Online driver application. Awaiting owner review and salary agreement.",
+      "createdAt": "2026-10-24T13:48:17.285Z",
+      "updatedAt": "2026-10-24T13:48:17.285Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": "cust_1792849596837",
+      "name": "xsdfghjkl",
+      "contactPerson": "xsdfghjkl",
+      "phone": "44\\",
+      "billingAddress": "lkjhgfds",
+      "createdAt": "2026-10-24T13:46:36.837Z",
+      "updatedAt": "2026-10-24T13:46:36.837Z"
+    }
+  ],
+  "trips": [
+    {
+      "id": "trip_1792849596837",
+      "tripNumber": "TRIP-2026-101",
+      "bookingDate": "2026-10-24",
+      "vehicleId": "veh_1792849513753",
+      "driverId": "drv_1792849546960",
+      "customerId": "cust_1792849596837",
+      "customerName": "xsdfghjkl",
+      "customerContactPhone": "44\\",
+      "loadingLocation": "|=sdfghjkl",
+      "deliveryLocation": "lkjhgfds",
+      "goodsDescription": "General Cargo",
+      "weightKg": 0,
+      "tripStartDate": "2026-10-24T13:46",
+      "expectedDeliveryDate": "2026-10-25T01:45",
+      "odometerStart": 214651,
+      "freightAmount": 4512,
+      "advanceReceived": 0,
+      "balanceDue": 4512,
+      "paymentStatus": "pending",
+      "tripStatus": "in_progress",
+      "notes": "",
+      "createdAt": "2026-10-24T13:46:36.837Z",
+      "updatedAt": "2026-10-24T13:46:43.732Z"
+    }
+  ],
   "tripPayments": [],
   "expenses": [],
   "salaryRecords": [],
   "salaryPayments": [],
   "maintenanceRecords": [],
   "challans": [],
-  "notifications": [],
+  "notifications": [
+    {
+      "id": "notif_1792849697285",
+      "type": "driver_approval",
+      "title": "New Driver Registration Pending",
+      "message": "asd (DL: OD02-3216549877) registered and is awaiting your review.",
+      "link": "/admin/drivers",
+      "isRead": false,
+      "priority": "high",
+      "createdAt": "2026-10-24T13:48:17.285Z"
+    },
+    {
+      "id": "notif_1792849603732",
+      "targetUserId": "usr_drv_1792849546960",
+      "type": "trip_update",
+      "title": "Trip Dispatched: TRIP-2026-101",
+      "message": "Trip TRIP-2026-101 on vehicle XDCFVGBH is now IN PROGRESS. Route: |=sdfghjkl -> lkjhgfds.",
+      "link": "/driver/trips",
+      "isRead": false,
+      "priority": "high",
+      "createdAt": "2026-10-24T13:46:43.732Z"
+    },
+    {
+      "id": "notif_1792849596837",
+      "targetUserId": "usr_drv_1792849546960",
+      "type": "trip_update",
+      "title": "New Trip Assigned: TRIP-2026-101",
+      "message": "From |=sdfghjkl to lkjhgfds (Cargo). Check details in My Trips.",
+      "link": "/driver/trips",
+      "isRead": false,
+      "priority": "high",
+      "createdAt": "2026-10-24T13:46:36.837Z"
+    }
+  ],
   "backups": [],
   "auditLogs": [
+    {
+      "id": "aud_1792849697286_h605",
+      "userId": "usr_drv_1792849697285",
+      "userName": "asd",
+      "userRole": "driver",
+      "action": "DRIVER_SIGNUP",
+      "entityType": "Driver",
+      "entityId": "drv_1792849697285",
+      "details": "New driver registered: asd (789456123). Awaiting admin approval.",
+      "createdAt": "2026-10-24T13:48:17.286Z"
+    },
+    {
+      "id": "aud_1792849633733_dgio",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "USER_LOGOUT",
+      "entityType": "Auth",
+      "details": "User logged out: Sushanta Nayak",
+      "createdAt": "2026-10-24T13:47:13.733Z"
+    },
+    {
+      "id": "aud_1792849603733_h57t",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "UPDATE_TRIP",
+      "entityType": "Trip",
+      "entityId": "trip_1792849596837",
+      "details": "Updated trip TRIP-2026-101 (Status: in_progress)",
+      "createdAt": "2026-10-24T13:46:43.733Z"
+    },
+    {
+      "id": "aud_1792849596837_790r",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "CREATE_TRIP",
+      "entityType": "Trip",
+      "entityId": "trip_1792849596837",
+      "details": "Booked trip TRIP-2026-101 (Freight: ₹4512) for vehicle XDCFVGBH",
+      "createdAt": "2026-10-24T13:46:36.837Z"
+    },
+    {
+      "id": "aud_1792849546962_y1ot",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "CREATE_DRIVER",
+      "entityType": "Driver",
+      "entityId": "drv_1792849546960",
+      "details": "Admin registered driver: xc v",
+      "createdAt": "2026-10-24T13:45:46.962Z"
+    },
+    {
+      "id": "aud_1792849513753_hypl",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "CREATE_VEHICLE",
+      "entityType": "Vehicle",
+      "entityId": "veh_1792849513753",
+      "details": "Added vehicle: XDCFVGBH (cv bn)",
+      "createdAt": "2026-10-24T13:45:13.753Z"
+    },
     {
       "id": "aud_1792849217169_42ie",
       "userId": "usr_admin_1792834655097",

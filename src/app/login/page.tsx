@@ -8,8 +8,10 @@ import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [loginMode, setLoginMode] = useState<'password' | 'pin'>('password');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,8 +30,18 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier || !password) {
-      setError('Please enter your email or mobile number and password.');
+    if (!identifier) {
+      setError('Please enter your email or registered mobile number.');
+      return;
+    }
+
+    if (loginMode === 'password' && !password) {
+      setError('Please enter your password.');
+      return;
+    }
+
+    if (loginMode === 'pin' && (!pin || pin.length !== 6)) {
+      setError('Please enter your complete 6-digit Master Security PIN.');
       return;
     }
 
@@ -40,7 +52,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier, password, pin, loginMode }),
       });
 
       const data = await res.json();
@@ -118,6 +130,34 @@ export default function LoginPage() {
         )}
 
         <div className="bg-slate-800/90 border border-slate-700/80 backdrop-blur-xl py-8 px-6 shadow-2xl rounded-2xl sm:px-10">
+          {/* Sign In Mode Selector Tabs */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900/60 rounded-xl mb-5 border border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => { setLoginMode('password'); setError(''); }}
+              className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                loginMode === 'password'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Password</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoginMode('pin'); setError(''); }}
+              className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                loginMode === 'pin'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>6-Digit Security PIN</span>
+            </button>
+          </div>
+
           {error && (
             <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
@@ -145,36 +185,84 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                  Password
-                </label>
-                <span className="text-[11px] text-blue-400 hover:text-blue-300 cursor-pointer">
-                  Forgot password?
-                </span>
-              </div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                  <Lock className="w-4 h-4" />
+            {loginMode === 'password' ? (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('pin')}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 cursor-pointer"
+                  >
+                    Use 6-Digit PIN instead?
+                  </button>
                 </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="block w-full pl-10 pr-10 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="block w-full pl-10 pr-10 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Master Security PIN (6 Digits)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMode('password')}
+                    className="text-[11px] text-blue-400 hover:text-blue-300 cursor-pointer"
+                  >
+                    Use Password instead?
+                  </button>
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    inputMode="numeric"
+                    maxLength={6}
+                    pattern="[0-9]{6}"
+                    required
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="• • • • • •"
+                    className="block w-full pl-10 pr-10 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-base font-mono font-bold tracking-widest text-center focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1.5">
+                  Quick 1-tap PIN sign in for fleet owner and administrator.
+                </p>
+              </div>
+            )}
 
             <button
               type="submit"

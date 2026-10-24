@@ -943,22 +943,33 @@ export function getDatabase(): DatabaseSchema {
   try {
     if (fs.existsSync(DB_FILE)) {
       const stat = fs.statSync(DB_FILE);
-      if (!cachedDb || stat.mtimeMs > lastLoadedMtime) {
+      if (!cachedDb || stat.mtimeMs !== lastLoadedMtime) {
         const data = fs.readFileSync(DB_FILE, 'utf-8');
-        cachedDb = JSON.parse(data) as DatabaseSchema;
-        lastLoadedMtime = stat.mtimeMs;
+        if (data && data.trim().length > 0) {
+          const parsed = JSON.parse(data) as DatabaseSchema;
+          if (parsed && parsed.settings && Array.isArray(parsed.users)) {
+            cachedDb = parsed;
+            lastLoadedMtime = stat.mtimeMs;
+          }
+        }
       }
-      return cachedDb;
+      if (cachedDb) return cachedDb;
     }
   } catch (err) {
     console.error('Error reading primary database file, attempting recovery from autosave:', err);
     try {
       if (fs.existsSync(AUTOSAVE_BACKUP_FILE)) {
         const autoData = fs.readFileSync(AUTOSAVE_BACKUP_FILE, 'utf-8');
-        cachedDb = JSON.parse(autoData) as DatabaseSchema;
-        // Restore to primary DB_FILE
-        fs.writeFileSync(DB_FILE, autoData, 'utf-8');
-        return cachedDb;
+        const parsed = JSON.parse(autoData) as DatabaseSchema;
+        if (parsed && parsed.settings && Array.isArray(parsed.users)) {
+          cachedDb = parsed;
+          // Self-heal primary DB_FILE
+          try {
+            fs.writeFileSync(DB_FILE, autoData, 'utf-8');
+            lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
+          } catch {}
+          return cachedDb;
+        }
       }
     } catch {}
   }
@@ -967,12 +978,17 @@ export function getDatabase(): DatabaseSchema {
   try {
     if (fs.existsSync(TMP_DB_FILE)) {
       const stat = fs.statSync(TMP_DB_FILE);
-      if (!cachedDb || stat.mtimeMs > lastLoadedMtime) {
+      if (!cachedDb || stat.mtimeMs !== lastLoadedMtime) {
         const data = fs.readFileSync(TMP_DB_FILE, 'utf-8');
-        cachedDb = JSON.parse(data) as DatabaseSchema;
-        lastLoadedMtime = stat.mtimeMs;
+        if (data && data.trim().length > 0) {
+          const parsed = JSON.parse(data) as DatabaseSchema;
+          if (parsed && parsed.settings && Array.isArray(parsed.users)) {
+            cachedDb = parsed;
+            lastLoadedMtime = stat.mtimeMs;
+          }
+        }
       }
-      return cachedDb;
+      if (cachedDb) return cachedDb;
     }
   } catch {}
 
@@ -992,14 +1008,19 @@ export function saveDatabase(db: DatabaseSchema): void {
 
   const jsonStr = JSON.stringify(db, null, 2);
 
-  // 1. Synchronously write directly to primary DB_FILE
+  // 1. First write to disaster-recovery autosave copy (ensures no data loss if disk interrupted)
+  try {
+    fs.writeFileSync(AUTOSAVE_BACKUP_FILE, jsonStr, 'utf-8');
+  } catch {}
+
+  // 2. Synchronously write directly to primary DB_FILE
   try {
     fs.writeFileSync(DB_FILE, jsonStr, 'utf-8');
     try {
       lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
     } catch {}
   } catch (err) {
-    // Attempt atomic write via temporary file if direct write encounters permission
+    // Attempt atomic write via temporary file if direct write encounters temporary file lock
     try {
       const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
       fs.writeFileSync(tempFile, jsonStr, 'utf-8');
@@ -1009,11 +1030,6 @@ export function saveDatabase(db: DatabaseSchema): void {
       console.error('Save to local DB_FILE failed:', e);
     }
   }
-
-  // 2. Automatically save an instant disaster-recovery autosave copy
-  try {
-    fs.writeFileSync(AUTOSAVE_BACKUP_FILE, jsonStr, 'utf-8');
-  } catch {}
 
   // 3. Also mirror to serverless TMP_DB_FILE for fallback resilience
   try {
