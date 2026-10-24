@@ -76,12 +76,12 @@ export default function ReportsPage() {
             <span>Print Financial Statement</span>
           </button>
           <a
-            href="/api/backup/download-txt"
+            href="/api/backup/export-excel"
             download
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors shadow-xs"
           >
-            <Download className="w-4 h-4 text-emerald-600" />
-            <span>Download English Report (.txt)</span>
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Master Excel Sheet (.xlsx)</span>
           </a>
           <a
             href="/api/backup/export-csv?type=financials"

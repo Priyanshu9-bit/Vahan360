@@ -199,26 +199,26 @@ export default function BackupPage() {
 
       {/* Main Download & Restore Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Full TXT Backup */}
-        <div className="bg-white rounded-2xl p-6 border-2 border-blue-500/30 shadow-md relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full pointer-events-none -mr-4 -mt-4" />
+        {/* Card 1: Full Master Excel Workbook (.xlsx) */}
+        <div className="bg-white rounded-2xl p-6 border-2 border-emerald-500/30 shadow-md relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full pointer-events-none -mr-4 -mt-4" />
           <div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-              <FileText className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Full Business Report & Backup (.txt)</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Master Fleet Excel Workbook (.xlsx)</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Download your complete fleet operations report in simple, easy-to-read English. Includes executive financial summary, vehicle details, driver roster, commercial trips, fuel expenses, and monthly driver salaries.
+              Download your complete fleet operational and financial ledger in Microsoft Excel format. Includes 8 dedicated worksheets: Executive Overview, Fleet Vehicles, Commercial Trips, Operating Expenses, Driver Salaries, Customer Ledger, Maintenance Records, and Traffic Challans.
             </p>
           </div>
 
           <a
-            href="/api/backup/download-txt"
+            href="/api/backup/export-excel"
             download
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all shadow-md shadow-blue-600/20"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-md shadow-emerald-600/20"
           >
             <Download className="w-4 h-4" />
-            <span>Download English Report & Backup (.txt)</span>
+            <span>Download Master Excel Sheet (.xlsx)</span>
           </a>
         </div>
 
