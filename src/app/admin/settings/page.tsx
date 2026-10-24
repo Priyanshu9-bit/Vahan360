@@ -24,6 +24,15 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Ownership Transfer Modal State
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [transferData, setTransferData] = useState({
@@ -33,6 +42,43 @@ export default function SettingsPage() {
     newPassword: '',
     confirmPassword: '',
   });
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters long.' });
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New password and confirm password do not match.' });
+      return;
+    }
+
+    setChangingPassword(true);
+    setPasswordMsg(null);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'change_password',
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPasswordMsg({ type: 'error', text: data.error || 'Failed to update password.' });
+      } else {
+        setPasswordMsg({ type: 'success', text: 'Password changed successfully!' });
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      }
+    } catch {
+      setPasswordMsg({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -257,6 +303,94 @@ export default function SettingsPage() {
           </div>
         </div>
       </form>
+
+      {/* Change Password Card */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Lock className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Change Login Password</h3>
+              <p className="text-[11px] text-slate-500">Update your Fleet Owner password anytime</p>
+            </div>
+          </div>
+        </div>
+
+        {passwordMsg && (
+          <div
+            className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+              passwordMsg.type === 'success'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border border-rose-200 text-rose-800'
+            }`}
+          >
+            {passwordMsg.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{passwordMsg.text}</span>
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                placeholder="Enter current password"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                New Password *
+              </label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                placeholder="At least 6 characters"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Confirm New Password *
+              </label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                placeholder="Re-type new password"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{changingPassword ? 'Updating Password...' : 'Update Password'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Single Admin Ownership & Security Transfer Section */}
       <div className="bg-slate-900 text-white rounded-2xl p-6 border border-slate-800 shadow-md space-y-4">

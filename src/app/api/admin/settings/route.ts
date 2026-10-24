@@ -31,6 +31,39 @@ export async function PUT(request: Request) {
     const { action } = body;
     const db = getDatabase();
 
+    if (action === 'change_password') {
+      const { currentPassword, newPassword } = body;
+      if (!newPassword || newPassword.length < 6) {
+        return NextResponse.json({ error: 'New password must be at least 6 characters long.' }, { status: 400 });
+      }
+
+      const currentUser = db.users.find((u) => u.id === admin.id);
+      if (!currentUser) {
+        return NextResponse.json({ error: 'User account not found.' }, { status: 404 });
+      }
+
+      const bcrypt = (await import('bcryptjs')).default;
+      if (currentPassword && !bcrypt.compareSync(currentPassword, currentUser.passwordHash)) {
+        return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 });
+      }
+
+      const salt = bcrypt.genSaltSync(10);
+      currentUser.passwordHash = bcrypt.hashSync(newPassword, salt);
+      currentUser.updatedAt = new Date().toISOString();
+
+      logAudit(
+        admin.id,
+        admin.name,
+        'admin',
+        'PASSWORD_CHANGED',
+        'Security',
+        `Admin changed their account password.`
+      );
+
+      saveDatabase(db);
+      return NextResponse.json({ success: true, message: 'Password updated successfully!' });
+    }
+
     if (action === 'transfer_ownership') {
       const { newName, newEmail, newPhone, newPassword } = body;
       if (!newName || !newEmail || !newPhone || !newPassword) {

@@ -21,7 +21,7 @@ async function runAllTests() {
   console.log('======================================================\n');
 
   // Preserve live database state before running tests
-  const liveDbSnapshot = getDatabase();
+  const liveDbSnapshot = JSON.parse(JSON.stringify(getDatabase()));
 
   // Test Clean Initial State
   const cleanDb = getCleanEmptyDatabase();
