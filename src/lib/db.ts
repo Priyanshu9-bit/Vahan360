@@ -25,6 +25,7 @@ import {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'vahan360_db.json');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
+const AUTOSAVE_BACKUP_FILE = path.join(BACKUPS_DIR, 'vahan360_autosave.json');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
 // Writable fallback directory on Serverless / Vercel
@@ -950,7 +951,16 @@ export function getDatabase(): DatabaseSchema {
       return cachedDb;
     }
   } catch (err) {
-    console.error('Error reading primary database file:', err);
+    console.error('Error reading primary database file, attempting recovery from autosave:', err);
+    try {
+      if (fs.existsSync(AUTOSAVE_BACKUP_FILE)) {
+        const autoData = fs.readFileSync(AUTOSAVE_BACKUP_FILE, 'utf-8');
+        cachedDb = JSON.parse(autoData) as DatabaseSchema;
+        // Restore to primary DB_FILE
+        fs.writeFileSync(DB_FILE, autoData, 'utf-8');
+        return cachedDb;
+      }
+    } catch {}
   }
 
   // 2. Try reading from serverless /tmp fallback file
@@ -1000,7 +1010,12 @@ export function saveDatabase(db: DatabaseSchema): void {
     }
   }
 
-  // 2. Also mirror to serverless TMP_DB_FILE for fallback resilience
+  // 2. Automatically save an instant disaster-recovery autosave copy
+  try {
+    fs.writeFileSync(AUTOSAVE_BACKUP_FILE, jsonStr, 'utf-8');
+  } catch {}
+
+  // 3. Also mirror to serverless TMP_DB_FILE for fallback resilience
   try {
     fs.writeFileSync(TMP_DB_FILE, jsonStr, 'utf-8');
   } catch {}

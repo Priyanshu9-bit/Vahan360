@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-10-24T12:30:38.279Z",
+  "updatedAt": "2026-10-24T13:40:17.173Z",
   "settings": {
     "id": "biz_01",
     "businessName": "Nayak Transport",
@@ -28,7 +28,8 @@
       "status": "active",
       "passwordHash": "$2b$10$BwtIAgxVuyrXlLSHUBab8edyXvMYaMS4zw3pHchxia8Lv7UnVM7wC",
       "createdAt": "2026-10-24T09:37:35.017Z",
-      "updatedAt": "2026-10-24T11:35:00.000Z"
+      "updatedAt": "2026-10-24T13:40:17.168Z",
+      "securityPinHash": "$2b$10$EVCMB/dpECZaTVxabbPtN.wJUa/V2FYh0KNB1dlB/wu5hezjZgfga"
     }
   ],
   "vehicles": [],
@@ -44,5 +45,16 @@
   "challans": [],
   "notifications": [],
   "backups": [],
-  "auditLogs": []
+  "auditLogs": [
+    {
+      "id": "aud_1792849217169_42ie",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "SECURITY_PIN_UPDATED",
+      "entityType": "Security",
+      "details": "Admin configured/updated their 6-digit Master Security PIN.",
+      "createdAt": "2026-10-24T13:40:17.169Z"
+    }
+  ]
 }

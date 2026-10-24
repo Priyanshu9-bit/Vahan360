@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  compress: true,
   turbopack: {
     rules: {
       "*.css": {
@@ -10,6 +11,15 @@ const nextConfig: NextConfig = {
     },
   },
   headers: async () => [
+    {
+      source: '/icons/:path*',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, max-age=31536000, immutable',
+        },
+      ],
+    },
     {
       source: '/:path*',
       headers: [
