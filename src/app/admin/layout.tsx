@@ -137,7 +137,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // 3. Authenticated Fleet Owner View
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex relative transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 flex relative">
       {/* Sidebar for Desktop & Drawer for Mobile */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
 
