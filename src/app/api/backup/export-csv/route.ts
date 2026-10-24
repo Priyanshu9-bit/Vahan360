@@ -52,7 +52,7 @@ export async function GET(request: Request) {
           const cust = db.customers.find((c) => c.id === t.customerId);
           return {
             'Trip Number': t.tripNumber,
-            BookingDate: t.bookingDate,
+            'Booking Date': t.bookingDate,
             Vehicle: veh?.regNumber || 'Unknown',
             Driver: drv?.fullName || 'Unknown',
             Customer: cust?.name || 'Unknown',

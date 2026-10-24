@@ -76,6 +76,14 @@ export default function ReportsPage() {
             <span>Print Financial Statement</span>
           </button>
           <a
+            href="/api/backup/download-txt"
+            download
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 transition-colors shadow-xs"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            <span>Download English Report (.txt)</span>
+          </a>
+          <a
             href="/api/backup/export-csv?type=financials"
             download
             className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-xs"

@@ -206,9 +206,9 @@ export default function BackupPage() {
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
               <FileText className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Full Business Backup (.txt)</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Full Business Report & Backup (.txt)</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Download complete fleet database as a portable, standardized UTF-8 text file. Includes vehicles, drivers, trips, payments, expenses, salaries, and compliance records.
+              Download your complete fleet operations report in simple, easy-to-read English. Includes executive financial summary, vehicle details, driver roster, commercial trips, fuel expenses, and monthly driver salaries.
             </p>
           </div>
 
@@ -218,7 +218,7 @@ export default function BackupPage() {
             className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-all shadow-md shadow-blue-600/20"
           >
             <Download className="w-4 h-4" />
-            <span>Download Full Backup (.txt)</span>
+            <span>Download English Report & Backup (.txt)</span>
           </a>
         </div>
 
