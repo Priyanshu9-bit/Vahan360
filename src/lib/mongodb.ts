@@ -1,8 +1,14 @@
 import { MongoClient, Db } from 'mongodb';
 import { DatabaseSchema } from '@/types';
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
-const DB_NAME = process.env.MONGODB_DB_NAME || 'vahan360';
+function getMongoUri(): string {
+  return process.env.MONGODB_URI || '';
+}
+
+function getDbName(): string {
+  return process.env.MONGODB_DB_NAME || 'vahan360';
+}
+
 const COLLECTION_NAME = 'fleet_state';
 const DOC_ID = 'primary_fleet_database';
 
@@ -16,15 +22,17 @@ declare global {
 }
 
 export function isMongoConfigured(): boolean {
-  return Boolean(MONGODB_URI && MONGODB_URI.startsWith('mongodb'));
+  const uri = getMongoUri();
+  return Boolean(uri && uri.startsWith('mongodb'));
 }
 
 export async function getMongoClient(): Promise<MongoClient | null> {
+  const uri = getMongoUri();
   if (!isMongoConfigured()) return null;
 
   if (process.env.NODE_ENV === 'development') {
     if (!global._mongoClientPromise) {
-      client = new MongoClient(MONGODB_URI, {
+      client = new MongoClient(uri, {
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 5000,
         connectTimeoutMS: 10000,
@@ -34,7 +42,7 @@ export async function getMongoClient(): Promise<MongoClient | null> {
     return global._mongoClientPromise;
   } else {
     if (!clientPromise) {
-      client = new MongoClient(MONGODB_URI, {
+      client = new MongoClient(uri, {
         maxPoolSize: 20,
         serverSelectionTimeoutMS: 5000,
         connectTimeoutMS: 10000,
@@ -48,7 +56,7 @@ export async function getMongoClient(): Promise<MongoClient | null> {
 export async function getMongoDb(): Promise<Db | null> {
   const c = await getMongoClient();
   if (!c) return null;
-  return c.db(DB_NAME);
+  return c.db(getDbName());
 }
 
 /**
