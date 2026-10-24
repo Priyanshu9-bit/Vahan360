@@ -222,15 +222,15 @@ export default function BackupPage() {
           </a>
         </div>
 
-        {/* Card 2: Documents ZIP Backup */}
+        {/* Card 2: Master Fleet Archive (.zip) */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
               <FileArchive className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Documents Backup (.zip)</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-1">Master Fleet Archive (.zip)</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Download all uploaded vehicle compliance certificates, RTO fitness documents, driving licence scans, workshop invoices, and expense vouchers with manifest mapping.
+              Download an all-in-one comprehensive ZIP archive containing your full database (.json), Excel workbook (.xlsx), CSV tables, plain-text disaster recovery file, and all uploaded compliance certificates.
             </p>
           </div>
 
@@ -240,7 +240,7 @@ export default function BackupPage() {
             className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
           >
             <Download className="w-4 h-4" />
-            <span>Download Documents Backup (.zip)</span>
+            <span>Download Master Fleet Archive (.zip)</span>
           </a>
         </div>
 

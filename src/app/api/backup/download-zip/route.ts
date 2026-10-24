@@ -7,15 +7,15 @@ export async function GET() {
   try {
     const admin = await requireAdmin();
     const zipBuffer = await generateDocumentsZip();
-    const filename = `Vahan360_Documents_Backup_${getBackupTimestamp()}.zip`;
+    const filename = `Vahan360_Master_Fleet_Archive_${getBackupTimestamp()}.zip`;
 
     logAudit(
       admin.id,
       admin.name,
       'admin',
-      'DOWNLOAD_DOCUMENTS_ZIP',
+      'DOWNLOAD_MASTER_ARCHIVE_ZIP',
       'Backup',
-      `Admin downloaded documents ZIP archive: ${filename} (${zipBuffer.byteLength} bytes)`
+      `Admin downloaded master fleet archive ZIP: ${filename} (${zipBuffer.byteLength} bytes)`
     );
 
     return new Response(new Uint8Array(zipBuffer), {

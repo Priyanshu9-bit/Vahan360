@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import JSZip from 'jszip';
 import { getDatabase, saveDatabase, logAudit } from './db';
 import { DatabaseSchema, BackupRecord } from '@/types';
+import { generateMasterExcelWorkbook } from './excel';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
@@ -567,15 +568,66 @@ export function restoreFromValidatedBackup(
   }
 }
 
-// Generate ZIP of uploaded documents and receipts
+// Generate comprehensive Master Fleet Archive ZIP with Excel, JSON, TXT, CSV, and documents
 export async function generateDocumentsZip(): Promise<Buffer> {
   const zip = new JSZip();
   const db = getDatabase();
 
-  // Manifest linking records to files
+  // 1. Master Excel Workbook (.xlsx)
+  try {
+    const excel = generateMasterExcelWorkbook(db);
+    zip.file(`reports/${excel.filename}`, excel.buffer);
+  } catch (err) {
+    console.error('Error adding Excel workbook to ZIP:', err);
+  }
+
+  // 2. Full Text Disaster Recovery Backup (.txt)
+  try {
+    const txtBackup = generateFullTxtBackup(db);
+    zip.file(`database/${txtBackup.filename}`, txtBackup.content);
+  } catch (err) {
+    console.error('Error adding TXT backup to ZIP:', err);
+  }
+
+  // 3. Sanitized JSON Database Snapshot (.json)
+  try {
+    const sanitizedDb = {
+      ...db,
+      users: db.users.map((u) => {
+        const { passwordHash, ...rest } = u;
+        return rest;
+      }),
+    };
+    zip.file('database/vahan360_database_snapshot.json', JSON.stringify(sanitizedDb, null, 2));
+  } catch (err) {
+    console.error('Error adding JSON snapshot to ZIP:', err);
+  }
+
+  // 4. Tabular CSV Exports
+  try {
+    if (db.vehicles.length > 0) zip.file('csv/vehicles.csv', exportToCsv(db.vehicles));
+    if (db.trips.length > 0) zip.file('csv/trips.csv', exportToCsv(db.trips));
+    if (db.drivers.length > 0) zip.file('csv/drivers.csv', exportToCsv(db.drivers));
+    if (db.expenses.length > 0) zip.file('csv/expenses.csv', exportToCsv(db.expenses));
+    if (db.customers.length > 0) zip.file('csv/customers.csv', exportToCsv(db.customers));
+    if (db.salaryRecords.length > 0) zip.file('csv/salary_records.csv', exportToCsv(db.salaryRecords));
+    if (db.maintenanceRecords.length > 0) zip.file('csv/maintenance.csv', exportToCsv(db.maintenanceRecords));
+    if (db.challans.length > 0) zip.file('csv/challans.csv', exportToCsv(db.challans));
+  } catch (err) {
+    console.error('Error adding CSVs to ZIP:', err);
+  }
+
+  // 5. Manifest linking records to files
   const manifest = {
     generatedAt: new Date().toISOString(),
     business: db.settings.businessName,
+    recordsSummary: {
+      vehicles: db.vehicles.length,
+      drivers: db.drivers.length,
+      trips: db.trips.length,
+      expenses: db.expenses.length,
+      customers: db.customers.length,
+    },
     vehicles: db.vehicles.map((v) => ({
       regNumber: v.regNumber,
       documents: db.documents.filter((d) => d.vehicleId === v.id),
@@ -586,13 +638,13 @@ export async function generateDocumentsZip(): Promise<Buffer> {
 
   zip.file('DOCUMENT_MANIFEST.json', JSON.stringify(manifest, null, 2));
 
-  // Plain English summary for transport owner
+  // 6. Plain English summary for transport owner
   const englishDocLines = [
     '================================================================================',
     'VAHAN360 - FLEET DOCUMENTS & RECEIPTS ARCHIVE (ENGLISH SUMMARY)',
     '================================================================================',
-    `Business Name  : ${db.settings.businessName}`,
-    `Fleet Owner    : ${db.settings.ownerName}`,
+    `Business Name  : ${db.settings.businessName || 'Vahan360 Fleet Logistics'}`,
+    `Fleet Owner    : ${db.settings.ownerName || 'Fleet Admin'}`,
     `Archive Date   : ${new Date().toLocaleString('en-IN')}`,
     '================================================================================',
     '',
@@ -622,15 +674,26 @@ export async function generateDocumentsZip(): Promise<Buffer> {
 
   zip.file('DOCUMENTS_LIST_ENGLISH.txt', englishDocLines);
 
-  // Add README
+  // 7. Informative Readme
   zip.file(
     'README.txt',
-    'Vahan360 - Document & Receipts Archive\n' +
-      'Contains uploaded compliance documents, RTO certificates, and expense vouchers.\n' +
-      'Open DOCUMENTS_LIST_ENGLISH.txt to read the full summary in simple English.'
+    `================================================================================
+VAHAN360 - ALL-IN-ONE MASTER FLEET ARCHIVE
+================================================================================
+Business     : ${db.settings.businessName || 'Vahan360 Fleet Logistics'}
+Owner        : ${db.settings.ownerName || 'Fleet Admin'}
+Generated At : ${new Date().toLocaleString('en-IN')}
+
+This comprehensive archive includes:
+1. /reports/      -> Complete Master Excel Workbook (.xlsx) with 8 financial & operational worksheets
+2. /database/     -> Full portable JSON database snapshot and plain-text disaster recovery file (.txt)
+3. /csv/          -> Raw CSV tables for vehicles, trips, drivers, and expenses
+4. /uploads/      -> Uploaded vehicle compliance certificates, RTO fitness documents, and receipts
+5. DOCUMENTS_LIST_ENGLISH.txt -> Human-readable fleet summary
+================================================================================`
   );
 
-  // If uploads directory has files, add them
+  // 8. If uploads directory has files, add them
   if (fs.existsSync(UPLOADS_DIR)) {
     const files = fs.readdirSync(UPLOADS_DIR);
     for (const file of files) {
