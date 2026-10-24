@@ -12,18 +12,10 @@
     --accent-red: #ef4444;
   }
 
-  html {
-    scroll-behavior: smooth;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
   body {
     background-color: #f8fafc;
     color: #0f172a;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    -webkit-tap-highlight-color: transparent;
   }
 }
 
