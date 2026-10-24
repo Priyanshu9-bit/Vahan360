@@ -44,8 +44,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         trip.distanceKm = odoEnd - trip.odometerStart;
 
         // Update vehicle current odometer
-        const veh = db.vehicles.find((v) => v.id === trip.vehicleId);
-        if (veh && odoEnd > veh.currentOdometer) {
+        const veh = db.vehicles.find((v) => v.id === trip.vehicleId || (v.regNumber && (trip as any).vehicleReg === v.regNumber));
+        if (veh) {
           veh.currentOdometer = odoEnd;
           veh.updatedAt = now;
         }

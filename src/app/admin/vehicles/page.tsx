@@ -18,6 +18,8 @@ import {
   Eye,
   IndianRupee,
   Shield,
+  Pencil,
+  Gauge,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -48,6 +50,89 @@ export default function VehiclesPage() {
     assignedDriverId: '',
     notes: '',
   });
+
+  // Edit Vehicle & Odometer Modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    id: '',
+    regNumber: '',
+    name: '',
+    manufacturer: 'Mahindra',
+    model: '',
+    vehicleType: 'Pickup Truck',
+    fuelType: 'Diesel',
+    currentOdometer: '',
+    status: 'active',
+    purchaseDate: '',
+    purchasePrice: '',
+    financer: '',
+    loanAmount: '',
+    emiAmount: '',
+    assignedDriverId: '',
+    notes: '',
+  });
+
+  const handleOpenEdit = (v: any) => {
+    setEditFormData({
+      id: v.id,
+      regNumber: v.regNumber || '',
+      name: v.name || '',
+      manufacturer: v.manufacturer || 'Commercial',
+      model: v.model || '',
+      vehicleType: v.vehicleType || 'Pickup Truck',
+      fuelType: v.fuelType || 'Diesel',
+      currentOdometer: String(v.currentOdometer ?? 0),
+      status: v.status || 'active',
+      purchaseDate: v.purchaseDate ? v.purchaseDate.slice(0, 10) : '',
+      purchasePrice: v.purchasePrice ? String(v.purchasePrice) : '',
+      financer: v.loanDetails?.financer || '',
+      loanAmount: v.loanDetails?.totalLoanAmount ? String(v.loanDetails.totalLoanAmount) : '',
+      emiAmount: v.loanDetails?.emiAmount ? String(v.loanDetails.emiAmount) : '',
+      assignedDriverId: v.assignedDriverId || '',
+      notes: v.notes || '',
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData.regNumber || !editFormData.name || editFormData.currentOdometer === '') {
+      alert('Please fill the mandatory fields: Vehicle Number, Vehicle Name, and Odometer Reading.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/vehicles/${editFormData.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editFormData,
+          currentOdometer: Number(editFormData.currentOdometer) || 0,
+          purchasePrice: Number(editFormData.purchasePrice) || 0,
+          loanDetails: editFormData.financer
+            ? {
+                financer: editFormData.financer,
+                totalLoanAmount: Number(editFormData.loanAmount) || 0,
+                emiAmount: Number(editFormData.emiAmount) || 0,
+              }
+            : undefined,
+        }),
+      });
+
+      if (res.ok) {
+        setEditModalOpen(false);
+        fetchVehicles();
+        if (selectedVehicleData && selectedVehicleData.vehicle?.id === editFormData.id) {
+          handleOpenProfile(editFormData.id);
+        }
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to update vehicle');
+      }
+    } catch {
+      alert('Error updating vehicle');
+    }
+  };
 
   // Vehicle Profile Modal
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -233,9 +318,21 @@ export default function VehiclesPage() {
 
               {/* Specs pill row */}
               <div className="grid grid-cols-2 gap-2 my-3 text-xs">
-                <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Odo</span>
-                  <span className="font-bold text-slate-800 font-mono">{veh.currentOdometer.toLocaleString()} km</span>
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(veh);
+                  }}
+                  className="p-2 rounded-lg bg-slate-50 hover:bg-blue-50/70 border border-slate-100 hover:border-blue-200 transition-colors cursor-pointer group/odo"
+                  title="Click to edit current odometer reading"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Current Odo</span>
+                    <Pencil className="w-2.5 h-2.5 text-slate-300 group-hover/odo:text-blue-600 transition-colors" />
+                  </div>
+                  <span className="font-bold text-slate-800 group-hover/odo:text-blue-700 font-mono transition-colors">
+                    {veh.currentOdometer.toLocaleString()} km
+                  </span>
                 </div>
                 <div className="p-2 rounded-lg bg-slate-50 border border-slate-100">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Fuel Type</span>
@@ -262,9 +359,23 @@ export default function VehiclesPage() {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block">Net Operating Profit</span>
                 <span className="text-sm font-black text-emerald-700">{formatINR(veh.profit)}</span>
               </div>
-              <div className="flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
-                <span>Full Profile</span>
-                <Eye className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(veh);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 transition-colors flex items-center gap-1"
+                  title="Edit vehicle details or change odometer"
+                >
+                  <Pencil className="w-3 h-3" />
+                  <span>Edit / Odo</span>
+                </button>
+                <div className="flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+                  <span>Profile</span>
+                  <Eye className="w-3.5 h-3.5" />
+                </div>
               </div>
             </div>
           </div>
@@ -483,29 +594,41 @@ export default function VehiclesPage() {
           <div className="py-12 text-center text-xs text-slate-500">Loading vehicle records...</div>
         ) : (
           <div className="space-y-4">
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-2 border-b border-slate-200 text-xs font-semibold">
-              {[
-                { id: 'overview', label: 'Overview' },
-                { id: 'trips', label: `Trips (${selectedVehicleData.trips?.length || 0})` },
-                { id: 'expenses', label: `Expenses (${selectedVehicleData.expenses?.length || 0})` },
-                { id: 'documents', label: `Compliance (${selectedVehicleData.documents?.length || 0})` },
-                { id: 'maintenance', label: `Maintenance (${selectedVehicleData.maintenance?.length || 0})` },
-                { id: 'challans', label: `Challans (${selectedVehicleData.challans?.length || 0})` },
-                { id: 'financials', label: 'Financial Summary' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setProfileTab(tab.id as any)}
-                  className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
-                    profileTab === tab.id
-                      ? 'bg-blue-600 text-white font-bold'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            {/* Navigation Tabs with Edit Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200">
+              <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold">
+                {[
+                  { id: 'overview', label: 'Overview' },
+                  { id: 'trips', label: `Trips (${selectedVehicleData.trips?.length || 0})` },
+                  { id: 'expenses', label: `Expenses (${selectedVehicleData.expenses?.length || 0})` },
+                  { id: 'documents', label: `Compliance (${selectedVehicleData.documents?.length || 0})` },
+                  { id: 'maintenance', label: `Maintenance (${selectedVehicleData.maintenance?.length || 0})` },
+                  { id: 'challans', label: `Challans (${selectedVehicleData.challans?.length || 0})` },
+                  { id: 'financials', label: 'Financial Summary' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setProfileTab(tab.id as any)}
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                      profileTab === tab.id
+                        ? 'bg-blue-600 text-white font-bold'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenEdit(selectedVehicleData.vehicle)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shrink-0 self-end sm:self-auto transition-colors cursor-pointer"
+                title="Edit vehicle details or change odometer"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit / Update Odometer</span>
+              </button>
             </div>
 
             {/* Tab 1: Overview */}
@@ -516,9 +639,18 @@ export default function VehiclesPage() {
                     <span className="text-[10px] text-slate-400 font-bold uppercase block">Make & Model</span>
                     <span className="font-bold text-slate-900">{selectedVehicleData.vehicle.manufacturer} {selectedVehicleData.vehicle.model}</span>
                   </div>
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block">Odometer</span>
-                    <span className="font-bold text-slate-900 font-mono">{selectedVehicleData.vehicle.currentOdometer.toLocaleString()} km</span>
+                  <div 
+                    onClick={() => handleOpenEdit(selectedVehicleData.vehicle)}
+                    className="p-3 bg-slate-50 hover:bg-blue-50/70 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors cursor-pointer group/odo"
+                    title="Click to edit current odometer reading"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase block">Odometer</span>
+                      <Pencil className="w-2.5 h-2.5 text-slate-400 group-hover/odo:text-blue-600 transition-colors" />
+                    </div>
+                    <span className="font-bold text-slate-900 group-hover/odo:text-blue-700 font-mono transition-colors">
+                      {selectedVehicleData.vehicle.currentOdometer.toLocaleString()} km
+                    </span>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <span className="text-[10px] text-slate-400 font-bold uppercase block">Status</span>
@@ -682,6 +814,215 @@ export default function VehiclesPage() {
             )}
           </div>
         )}
+      </Modal>
+
+      {/* Edit Vehicle & Odometer Modal */}
+      <Modal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title={editFormData.regNumber ? `Edit Vehicle: ${editFormData.regNumber}` : 'Edit Vehicle Details'}
+        subtitle="Update vehicle specifications, assigned driver, and current odometer reading"
+        maxWidth="xl"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Vehicle Registration Number *
+              </label>
+              <input
+                type="text"
+                required
+                value={editFormData.regNumber}
+                onChange={(e) => setEditFormData({ ...editFormData, regNumber: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold uppercase focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Vehicle Name *
+              </label>
+              <input
+                type="text"
+                required
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* ODOMETER HIGHLIGHT BOX */}
+          <div className="p-3.5 rounded-xl bg-blue-50/80 border border-blue-200 space-y-1.5">
+            <label className="block text-xs font-black text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Gauge className="w-4 h-4 text-blue-600" />
+              <span>Current Odometer Reading (KM) *</span>
+            </label>
+            <input
+              type="number"
+              required
+              min="0"
+              value={editFormData.currentOdometer}
+              onChange={(e) => setEditFormData({ ...editFormData, currentOdometer: e.target.value })}
+              className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl text-base font-mono font-black text-slate-900 focus:ring-2 focus:ring-blue-500 shadow-xs"
+            />
+            <p className="text-[11px] text-blue-700 leading-relaxed">
+              💡 You can manually adjust this reading anytime here. It also automatically updates whenever any delivery trip is marked as completed.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Vehicle Status
+              </label>
+              <select
+                value={editFormData.status}
+                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="active">Active (Available)</option>
+                <option value="in_service">In Service / Maintenance</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Assigned Driver
+              </label>
+              <select
+                value={editFormData.assignedDriverId}
+                onChange={(e) => setEditFormData({ ...editFormData, assignedDriverId: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- No Driver Assigned --</option>
+                {drivers
+                  .filter((d) => d.accountStatus === 'approved')
+                  .map((drv) => (
+                    <option key={drv.id} value={drv.id}>
+                      {drv.fullName} ({drv.phone})
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Fuel Type
+              </label>
+              <select
+                value={editFormData.fuelType}
+                onChange={(e) => setEditFormData({ ...editFormData, fuelType: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Diesel">Diesel</option>
+                <option value="CNG">CNG</option>
+                <option value="Petrol">Petrol</option>
+                <option value="Electric">Electric</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Manufacturer
+              </label>
+              <input
+                type="text"
+                value={editFormData.manufacturer}
+                onChange={(e) => setEditFormData({ ...editFormData, manufacturer: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Model
+              </label>
+              <input
+                type="text"
+                value={editFormData.model}
+                onChange={(e) => setEditFormData({ ...editFormData, model: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Body / Vehicle Type
+              </label>
+              <input
+                type="text"
+                value={editFormData.vehicleType}
+                onChange={(e) => setEditFormData({ ...editFormData, vehicleType: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Purchase Price (₹)
+              </label>
+              <input
+                type="number"
+                value={editFormData.purchasePrice}
+                onChange={(e) => setEditFormData({ ...editFormData, purchasePrice: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Loan Financer
+              </label>
+              <input
+                type="text"
+                value={editFormData.financer}
+                onChange={(e) => setEditFormData({ ...editFormData, financer: e.target.value })}
+                placeholder="e.g. Mahindra Finance / HDFC"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Monthly EMI (₹)
+              </label>
+              <input
+                type="number"
+                value={editFormData.emiAmount}
+                onChange={(e) => setEditFormData({ ...editFormData, emiAmount: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Internal Remarks & Notes
+            </label>
+            <textarea
+              rows={2}
+              value={editFormData.notes}
+              onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 rounded-xl"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-md cursor-pointer"
+            >
+              Save Changes & Update Odometer
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

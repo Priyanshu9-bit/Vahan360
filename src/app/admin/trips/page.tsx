@@ -18,6 +18,8 @@ import {
   IndianRupee,
   Truck,
   ArrowRight,
+  MessageSquare,
+  Gauge,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -69,6 +71,12 @@ export default function TripsPage() {
   const [slipModalOpen, setSlipModalOpen] = useState(false);
   const [selectedTripForSlip, setSelectedTripForSlip] = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
+
+  // Complete Trip Modal
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [selectedTripForComplete, setSelectedTripForComplete] = useState<any>(null);
+  const [completeOdometerEnd, setCompleteOdometerEnd] = useState('');
+  const [completingTrip, setCompletingTrip] = useState(false);
 
   const fetchTripsData = async () => {
     try {
@@ -193,6 +201,82 @@ export default function TripsPage() {
     }
   };
 
+  const handleOpenCompleteModal = (trip: any) => {
+    setSelectedTripForComplete(trip);
+    setCompleteOdometerEnd(trip.odometerEnd ? String(trip.odometerEnd) : '');
+    setCompleteModalOpen(true);
+  };
+
+  const handleCompleteTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTripForComplete) return;
+    const endOdo = parseFloat(completeOdometerEnd);
+    if (isNaN(endOdo) || endOdo <= 0) {
+      alert('Please enter a valid closing odometer reading.');
+      return;
+    }
+    if (selectedTripForComplete.odometerStart && endOdo < selectedTripForComplete.odometerStart) {
+      if (
+        !confirm(
+          `Closing odometer (${endOdo} km) is less than starting odometer (${selectedTripForComplete.odometerStart} km). Are you sure you want to proceed?`
+        )
+      ) {
+        return;
+      }
+    }
+    setCompletingTrip(true);
+    try {
+      const res = await fetch(`/api/admin/trips/${selectedTripForComplete.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripStatus: 'completed',
+          odometerEnd: endOdo,
+          actualCompletionDate: new Date().toISOString(),
+        }),
+      });
+      if (res.ok) {
+        setCompleteModalOpen(false);
+        setSelectedTripForComplete(null);
+        setCompleteOdometerEnd('');
+        await fetchTripsData();
+        alert(`Trip completed! Vehicle ${selectedTripForComplete.vehicleReg} odometer updated to ${endOdo} km.`);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to complete trip');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error completing trip');
+    } finally {
+      setCompletingTrip(false);
+    }
+  };
+
+  const handleShareWhatsApp = (trip: any) => {
+    if (!trip) return;
+    const phone = trip.customerContactPhone ? trip.customerContactPhone.replace(/[^0-9]/g, '') : '';
+    const text = `*VAHAN360 CONSIGNMENT / BILTY SLIP*
+Trip #: ${trip.tripNumber}
+Date: ${trip.bookingDate || formatDateIST(trip.createdAt || new Date().toISOString())}
+Vehicle: ${trip.vehicleReg}
+Driver: ${trip.driverName}
+Customer: ${trip.customerName}
+Route: ${trip.loadingLocation} -> ${trip.deliveryLocation}
+Cargo: ${trip.goodsDescription || 'General Cargo'} ${trip.weightKg ? `(${trip.weightKg} kg)` : ''}
+Freight: INR ${Number(trip.freightAmount || 0).toLocaleString('en-IN')}
+Advance: INR ${Number(trip.advanceReceived || 0).toLocaleString('en-IN')}
+Balance Due: INR ${Number(trip.balanceDue || 0).toLocaleString('en-IN')}
+Status: ${trip.tripStatus?.toUpperCase()}
+${trip.odometerEnd ? `Closing Odometer: ${trip.odometerEnd} km (Distance: ${trip.distanceKm || 0} km)` : `Starting Odometer: ${trip.odometerStart} km`}
+
+Generated via Vahan360 Fleet Management.`;
+    const url = phone.length >= 10
+      ? `https://wa.me/91${phone.slice(-10)}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
   const filteredTrips = trips.filter((t) => {
     const matchesSearch =
       t.tripNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -312,7 +396,17 @@ export default function TripsPage() {
                     <StatusBadge status={t.tripStatus} size="sm" />
                   </td>
                   <td className="py-3 px-3 text-center">
-                    <div className="flex items-center justify-center gap-1.5">
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap sm:flex-nowrap">
+                      {t.tripStatus !== 'completed' && t.tripStatus !== 'cancelled' && (
+                        <button
+                          onClick={() => handleOpenCompleteModal(t)}
+                          title="Complete Trip & Enter Closing Odometer"
+                          className="px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-[11px] border border-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                          <span>Complete</span>
+                        </button>
+                      )}
                       {t.balanceDue > 0 && (
                         <button
                           onClick={() => {
@@ -321,18 +415,25 @@ export default function TripsPage() {
                             setPaymentModalOpen(true);
                           }}
                           title="Record Payment"
-                          className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[11px] border border-emerald-200 transition-colors"
+                          className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-[11px] border border-emerald-200 transition-colors cursor-pointer"
                         >
                           + Pay
                         </button>
                       )}
+                      <button
+                        onClick={() => handleShareWhatsApp(t)}
+                        title="Share Bilty on WhatsApp"
+                        className="p-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition-colors cursor-pointer"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => {
                           setSelectedTripForSlip(t);
                           setSlipModalOpen(true);
                         }}
                         title="Print Trip Slip"
-                        className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                        className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors cursor-pointer"
                       >
                         <Printer className="w-3.5 h-3.5" />
                       </button>
@@ -892,13 +993,21 @@ export default function TripsPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2 pt-2 no-print">
+            <div className="flex items-center justify-end gap-2 pt-2 no-print flex-wrap">
               <button
                 type="button"
                 onClick={() => setSlipModalOpen(false)}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
               >
                 Close
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShareWhatsApp(selectedTripForSlip)}
+                className="px-4 py-2.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span>Share Bilty on WhatsApp</span>
               </button>
               <button
                 type="button"
@@ -910,6 +1019,93 @@ export default function TripsPage() {
               </button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Complete Trip & Record Closing Odometer Modal */}
+      <Modal
+        isOpen={completeModalOpen}
+        onClose={() => setCompleteModalOpen(false)}
+        title="Complete Trip & Record Closing Odometer"
+        subtitle="Enter the final odometer reading upon trip completion to automatically update vehicle details"
+        maxWidth="md"
+      >
+        {selectedTripForComplete && (
+          <form onSubmit={handleCompleteTrip} className="space-y-4">
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">Trip Number:</span>
+                <span className="font-mono font-bold text-blue-700">{selectedTripForComplete.tripNumber}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">Vehicle / Driver:</span>
+                <span className="font-semibold text-slate-800">
+                  {selectedTripForComplete.vehicleReg} &bull; {selectedTripForComplete.driverName}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium">Route:</span>
+                <span className="font-semibold text-slate-800">
+                  {selectedTripForComplete.loadingLocation} &rarr; {selectedTripForComplete.deliveryLocation}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs border-t border-slate-200 pt-2">
+                <span className="text-slate-500 font-medium">Trip Starting Odometer:</span>
+                <span className="font-mono font-bold text-slate-900">{selectedTripForComplete.odometerStart || 0} km</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Closing Odometer Reading (km) *
+              </label>
+              <div className="relative">
+                <Gauge className="w-4 h-4 text-blue-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="number"
+                  required
+                  min={selectedTripForComplete.odometerStart || 0}
+                  step="any"
+                  value={completeOdometerEnd}
+                  onChange={(e) => setCompleteOdometerEnd(e.target.value)}
+                  placeholder={`e.g. ${(selectedTripForComplete.odometerStart || 0) + 150}`}
+                  className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-blue-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-hidden focus:border-blue-600"
+                />
+              </div>
+              {completeOdometerEnd && !isNaN(Number(completeOdometerEnd)) && (
+                <div className="mt-2.5 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-medium">Calculated Trip Distance:</span>
+                    <span className="font-bold text-blue-800">
+                      {Math.max(0, Number(completeOdometerEnd) - (selectedTripForComplete.odometerStart || 0))} km
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-blue-700 font-semibold flex items-center gap-1.5 pt-1.5 border-t border-blue-200">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span>Vehicle {selectedTripForComplete.vehicleReg} odometer will automatically update to {completeOdometerEnd} km</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setCompleteModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={completingTrip}
+                className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{completingTrip ? 'Completing...' : 'Complete Trip & Update Vehicle Odometer'}</span>
+              </button>
+            </div>
+          </form>
         )}
       </Modal>
     </div>

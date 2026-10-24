@@ -55,8 +55,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     // Update status and odometer
     let distanceKm = currentTrip.distanceKm;
-    if (body.odometerEnd && body.odometerEnd > currentTrip.odometerStart) {
-      distanceKm = Number(body.odometerEnd) - currentTrip.odometerStart;
+    if (body.odometerEnd !== undefined && body.odometerEnd !== null && body.odometerEnd !== '') {
+      const odoEnd = Number(body.odometerEnd);
+      distanceKm = Math.max(0, odoEnd - currentTrip.odometerStart);
+      
+      // Automatically update vehicle's current odometer in vehicle details
+      const veh = db.vehicles.find((v) => v.id === currentTrip.vehicleId || (v.regNumber && (currentTrip as any).vehicleReg === v.regNumber));
+      if (veh) {
+        veh.currentOdometer = odoEnd;
+        veh.updatedAt = new Date().toISOString();
+      }
     }
 
     const updatedTrip = {
@@ -67,15 +75,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       updatedAt: new Date().toISOString(),
     };
 
-    // If trip completed, update vehicle current odometer
-    if (body.tripStatus === 'completed' && prevStatus !== 'completed') {
-      updatedTrip.actualCompletionDate = body.actualCompletionDate || new Date().toISOString();
-      if (body.odometerEnd) {
-        const veh = db.vehicles.find((v) => v.id === currentTrip.vehicleId);
-        if (veh && Number(body.odometerEnd) > veh.currentOdometer) {
-          veh.currentOdometer = Number(body.odometerEnd);
-          veh.updatedAt = new Date().toISOString();
-        }
+    if (body.odometerEnd) {
+      updatedTrip.odometerEnd = Number(body.odometerEnd);
+    }
+
+    // If trip completed
+    if (body.tripStatus === 'completed') {
+      if (!updatedTrip.actualCompletionDate) {
+        updatedTrip.actualCompletionDate = body.actualCompletionDate || new Date().toISOString();
       }
     }
 
