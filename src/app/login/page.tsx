@@ -18,6 +18,24 @@ export default function LoginPage() {
   const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
+    // If user already has an active session, automatically redirect to their console
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.user) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const redirectTarget = urlParams.get('redirect');
+          if (data.user.role === 'admin') {
+            const dest = (redirectTarget && redirectTarget.startsWith('/admin')) ? redirectTarget : '/admin';
+            window.location.replace(dest);
+          } else {
+            const dest = (redirectTarget && redirectTarget.startsWith('/driver')) ? redirectTarget : '/driver/dashboard';
+            window.location.replace(dest);
+          }
+        }
+      })
+      .catch(() => {});
+
     fetch('/api/auth/setup-admin')
       .then((res) => res.json())
       .then((data) => {
@@ -25,7 +43,7 @@ export default function LoginPage() {
           setNeedsSetup(true);
         }
       })
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -65,7 +83,7 @@ export default function LoginPage() {
           return;
         }
         if (data.status === 'suspended') {
-          router.push('/access-restricted');
+          window.location.replace('/access-restricted');
           return;
         }
         setError(data.error || 'Failed to sign in. Please verify your credentials.');
@@ -74,7 +92,7 @@ export default function LoginPage() {
       }
 
       if (data.status === 'pending_approval') {
-        window.location.href = '/approval-pending';
+        window.location.replace('/approval-pending');
         return;
       }
 
@@ -84,10 +102,10 @@ export default function LoginPage() {
 
       if (data.role === 'admin') {
         const destination = (redirectTarget && redirectTarget.startsWith('/admin')) ? redirectTarget : '/admin';
-        window.location.href = destination;
+        window.location.replace(destination);
       } else {
         const destination = (redirectTarget && redirectTarget.startsWith('/driver')) ? redirectTarget : '/driver/dashboard';
-        window.location.href = destination;
+        window.location.replace(destination);
       }
     } catch {
       setError('Connection error. Please ensure the server is running.');
