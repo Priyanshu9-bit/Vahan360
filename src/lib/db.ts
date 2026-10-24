@@ -1037,8 +1037,8 @@ export function saveDatabase(db: DatabaseSchema): void {
     fs.writeFileSync(TMP_DB_FILE, jsonStr, 'utf-8');
   } catch {}
 
-  // 4. If MongoDB Atlas is configured, asynchronously persist to cloud
-  if (isMongoConfigured()) {
+  // 4. If MongoDB Atlas is configured, asynchronously persist to cloud (disabled in test mode)
+  if (isMongoConfigured() && process.env.NODE_ENV !== 'test' && !process.env.TEST_MODE) {
     saveToMongo(db).catch((err) => {
       console.error('Background MongoDB sync error:', err);
     });

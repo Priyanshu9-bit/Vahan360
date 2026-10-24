@@ -1,3 +1,6 @@
+(process.env as any).NODE_ENV = 'test';
+process.env.TEST_MODE = 'true';
+
 import fs from 'fs';
 import path from 'path';
 import { getDatabase, saveDatabase, getSingleAdmin, canCreateAdmin, getDemoDatabase, resetDatabaseToEmpty, getCleanEmptyDatabase } from '../lib/db';
