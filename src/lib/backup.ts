@@ -330,15 +330,19 @@ export function generateFullTxtBackup(db: DatabaseSchema): { content: string; fi
 
 // Perform scheduled or manual server-side backup
 export function performServerBackup(type: 'scheduled_daily' | 'manual_txt'): BackupRecord {
-  if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-
   const db = getDatabase();
   const { content, filename, checksum } = generateFullTxtBackup(db);
 
-  const filePath = path.join(BACKUPS_DIR, filename);
-  fs.writeFileSync(filePath, content, 'utf8');
+  let fileSize = Buffer.byteLength(content, 'utf8');
 
-  const stats = fs.statSync(filePath);
+  try {
+    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    const filePath = path.join(BACKUPS_DIR, filename);
+    fs.writeFileSync(filePath, content, 'utf8');
+    fileSize = fs.statSync(filePath).size;
+  } catch {
+    // Read-only filesystem (e.g. Vercel)
+  }
 
   const record: BackupRecord = {
     id: `bak_${Date.now()}`,
@@ -359,7 +363,7 @@ export function performServerBackup(type: 'scheduled_daily' | 'manual_txt'): Bac
       db.maintenanceRecords.length +
       db.challans.length,
     documentCount: db.documents.length,
-    fileSize: stats.size,
+    fileSize,
     status: 'success',
     checksum,
     storageLocation: `data/backups/${filename}`,

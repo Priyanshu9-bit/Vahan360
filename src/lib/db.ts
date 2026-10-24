@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import bcrypt from 'bcryptjs';
+import bundledDbData from '../../data/vahan360_db.json';
 import {
   DatabaseSchema,
   User,
@@ -26,11 +28,26 @@ const DB_FILE = path.join(DATA_DIR, 'vahan360_db.json');
 const BACKUPS_DIR = path.join(DATA_DIR, 'backups');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
-// Ensure necessary directories exist
+// Writable fallback directory on Serverless / Vercel
+const TMP_DATA_DIR = path.join(os.tmpdir(), 'vahan360_data');
+const TMP_DB_FILE = path.join(TMP_DATA_DIR, 'vahan360_db.json');
+const TMP_BACKUPS_DIR = path.join(TMP_DATA_DIR, 'backups');
+const TMP_UPLOADS_DIR = path.join(TMP_DATA_DIR, 'uploads');
+
+// Ensure necessary directories exist without throwing on read-only serverless filesystems
 function ensureDirectories() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
-  if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  } catch {
+    // Read-only filesystem (e.g. Vercel Serverless / AWS Lambda)
+    try {
+      if (!fs.existsSync(TMP_DATA_DIR)) fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+      if (!fs.existsSync(TMP_BACKUPS_DIR)) fs.mkdirSync(TMP_BACKUPS_DIR, { recursive: true });
+      if (!fs.existsSync(TMP_UPLOADS_DIR)) fs.mkdirSync(TMP_UPLOADS_DIR, { recursive: true });
+    } catch {}
+  }
 }
 
 export function getCleanEmptyDatabase(): DatabaseSchema {
@@ -919,20 +936,37 @@ export function getDemoDatabase(): DatabaseSchema {
 let cachedDb: DatabaseSchema | null = null;
 
 export function getDatabase(): DatabaseSchema {
-  ensureDirectories();
   if (cachedDb) return cachedDb;
 
-  if (fs.existsSync(DB_FILE)) {
-    try {
+  ensureDirectories();
+
+  // 1. Try reading from writable /tmp directory if updated during current serverless session
+  try {
+    if (fs.existsSync(TMP_DB_FILE)) {
+      const data = fs.readFileSync(TMP_DB_FILE, 'utf-8');
+      cachedDb = JSON.parse(data) as DatabaseSchema;
+      return cachedDb;
+    }
+  } catch {}
+
+  // 2. Try reading from local data/ directory
+  try {
+    if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf-8');
       cachedDb = JSON.parse(data) as DatabaseSchema;
       return cachedDb;
-    } catch (err) {
-      console.error('Error reading database file, loading fallback:', err);
     }
+  } catch (err) {
+    console.error('Error reading database file from local path:', err);
   }
 
-  // Create initial database with seed data
+  // 3. Guaranteed bundled fallback (works on Vercel even if data/ directory is not copied)
+  if (bundledDbData && typeof bundledDbData === 'object' && Array.isArray((bundledDbData as any).users)) {
+    cachedDb = JSON.parse(JSON.stringify(bundledDbData)) as DatabaseSchema;
+    return cachedDb;
+  }
+
+  // 4. Create initial database fallback
   cachedDb = getInitialDatabase();
   saveDatabase(cachedDb);
   return cachedDb;
@@ -943,17 +977,24 @@ export function saveDatabase(db: DatabaseSchema): void {
   db.updatedAt = new Date().toISOString();
   cachedDb = db;
 
-  const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
+  const jsonStr = JSON.stringify(db, null, 2);
+
+  // 1. Try persistent write to local directory (local dev / persistent servers)
   try {
-    fs.writeFileSync(tempFile, JSON.stringify(db, null, 2), 'utf-8');
+    const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempFile, jsonStr, 'utf-8');
     fs.renameSync(tempFile, DB_FILE);
   } catch (err) {
-    console.error('Error writing database to disk:', err);
-    if (fs.existsSync(tempFile)) {
-      try {
-        fs.unlinkSync(tempFile);
-      } catch {}
-    }
+    // Local directory is read-only (e.g. Vercel)
+  }
+
+  // 2. Also write to /tmp on serverless environments
+  try {
+    const tempTmpFile = `${TMP_DB_FILE}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempTmpFile, jsonStr, 'utf-8');
+    fs.renameSync(tempTmpFile, TMP_DB_FILE);
+  } catch (err) {
+    // Suppress write errors in restricted containers
   }
 }
 
