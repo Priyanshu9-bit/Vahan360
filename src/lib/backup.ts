@@ -359,7 +359,7 @@ export function generateTransactionsNote(db: DatabaseSchema): { content: string;
     .filter((c) => c.paymentStatus === 'paid')
     .reduce((sum, c) => sum + (c.fineAmount || 0), 0);
   const totalChallansPending = db.challans
-    .filter((c) => c.paymentStatus === 'pending')
+    .filter((c) => c.paymentStatus !== 'paid')
     .reduce((sum, c) => sum + (c.fineAmount || 0), 0);
 
   const netFleetProfit = totalFreight - totalApprovedExpenses;
