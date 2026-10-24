@@ -15,6 +15,9 @@ import {
   UserCheck,
   Lock,
   ShieldCheck,
+  Database,
+  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
@@ -42,6 +45,41 @@ export default function SettingsPage() {
   });
   const [savingPin, setSavingPin] = useState(false);
   const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // MongoDB Cloud Database state
+  const [mongoStatus, setMongoStatus] = useState<any>(null);
+  const [syncingMongo, setSyncingMongo] = useState(false);
+  const [mongoMsg, setMongoMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchMongoStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/mongodb');
+      if (res.ok) {
+        const json = await res.json();
+        setMongoStatus(json);
+      }
+    } catch {}
+  };
+
+  const handleSyncMongo = async () => {
+    setSyncingMongo(true);
+    setMongoMsg(null);
+    try {
+      const res = await fetch('/api/admin/mongodb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_now' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMongoMsg({ type: 'success', text: data.message });
+      fetchMongoStatus();
+    } catch (err: any) {
+      setMongoMsg({ type: 'error', text: err.message || 'Sync failed.' });
+    } finally {
+      setSyncingMongo(false);
+    }
+  };
 
   // Ownership Transfer Modal State
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -149,6 +187,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchSettings();
+    fetchMongoStatus();
   }, []);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -549,6 +588,115 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Cloud Database (MongoDB Atlas) Section */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <Database className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Cloud Database (MongoDB Atlas)</h3>
+              <p className="text-[11px] text-slate-500">
+                Permanent, high-performance cloud storage ensuring data is never lost during Render restarts
+              </p>
+            </div>
+          </div>
+          <span
+            className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border self-start sm:self-auto ${
+              mongoStatus?.connected
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : mongoStatus?.configured
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}
+          >
+            {mongoStatus?.connected
+              ? `✓ Connected (${mongoStatus.databaseName})`
+              : mongoStatus?.configured
+              ? '✕ Connection Error'
+              : 'Local Filesystem Mode'}
+          </span>
+        </div>
+
+        {mongoMsg && (
+          <div
+            className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+              mongoMsg.type === 'success'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border border-rose-200 text-rose-800'
+            }`}
+          >
+            {mongoMsg.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{mongoMsg.text}</span>
+          </div>
+        )}
+
+        <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-xs space-y-3">
+          <div className="flex items-start gap-2.5">
+            <Cloud className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold text-slate-800">
+                {mongoStatus?.connected
+                  ? 'Cloud Synchronization Active'
+                  : 'How to connect your free MongoDB Atlas database on Render:'}
+              </p>
+              {mongoStatus?.connected ? (
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  Every vehicle, driver, trip, and payment is automatically saved to MongoDB Atlas in real time. Your business data is safely preserved across all server redeploys and restarts.
+                </p>
+              ) : (
+                <ol className="list-decimal pl-4 space-y-1 text-slate-600 text-[11px] leading-relaxed">
+                  <li>Create a free cluster on <strong className="text-blue-600">mongodb.com/cloud/atlas</strong></li>
+                  <li>Copy your connection URI (e.g. <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[10px]">mongodb+srv://user:pass@cluster.mongodb.net/vahan360</code>)</li>
+                  <li>In your Render Dashboard, go to <strong>Environment &rarr; Add Environment Variable</strong>: Key: <code className="font-mono text-[10px] font-bold">MONGODB_URI</code></li>
+                  <li>Render will automatically deploy with 100% permanent cloud persistence!</li>
+                </ol>
+              )}
+            </div>
+          </div>
+
+          {mongoStatus?.connected && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200 text-center">
+              <div className="p-2 bg-white rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Cloud Vehicles</span>
+                <span className="text-sm font-extrabold text-slate-800">{mongoStatus.cloudVehiclesCount || 0}</span>
+              </div>
+              <div className="p-2 bg-white rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Cloud Trips</span>
+                <span className="text-sm font-extrabold text-slate-800">{mongoStatus.cloudTripsCount || 0}</span>
+              </div>
+              <div className="p-2 bg-white rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Cloud Drivers</span>
+                <span className="text-sm font-extrabold text-slate-800">{mongoStatus.cloudDriversCount || 0}</span>
+              </div>
+              <div className="p-2 bg-white rounded-lg border border-slate-200">
+                <span className="text-[10px] text-slate-400 block font-bold uppercase">Status</span>
+                <span className="text-sm font-extrabold text-emerald-600">Live Sync</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {mongoStatus?.connected && (
+          <div className="flex justify-end pt-1">
+            <button
+              type="button"
+              onClick={handleSyncMongo}
+              disabled={syncingMongo}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50 transition-all"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncingMongo ? 'animate-spin' : ''}`} />
+              <span>{syncingMongo ? 'Syncing to Cloud...' : 'Backup Current Database to MongoDB Atlas Now'}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Single Admin Ownership & Security Transfer Section */}

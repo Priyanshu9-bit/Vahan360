@@ -21,6 +21,7 @@ import {
   BackupRecord,
   AuditLog,
 } from '@/types';
+import { isMongoConfigured, loadFromMongo, saveToMongo } from './mongodb';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'vahan360_db.json');
@@ -1035,6 +1036,40 @@ export function saveDatabase(db: DatabaseSchema): void {
   try {
     fs.writeFileSync(TMP_DB_FILE, jsonStr, 'utf-8');
   } catch {}
+
+  // 4. If MongoDB Atlas is configured, asynchronously persist to cloud
+  if (isMongoConfigured()) {
+    saveToMongo(db).catch((err) => {
+      console.error('Background MongoDB sync error:', err);
+    });
+  }
+}
+
+/**
+ * Hydrates database from MongoDB Atlas on cloud boot
+ * If MongoDB Atlas is empty, automatically seeds it with local business data!
+ */
+export async function initializeDatabaseWithCloud(): Promise<DatabaseSchema> {
+  if (isMongoConfigured()) {
+    try {
+      const cloudDb = await loadFromMongo();
+      if (cloudDb && cloudDb.settings && Array.isArray(cloudDb.users)) {
+        cachedDb = cloudDb;
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(cloudDb, null, 2), 'utf-8');
+        } catch {}
+        return cloudDb;
+      } else {
+        // First-time connecting to MongoDB Atlas: auto-seed from existing local file
+        const localDb = getDatabase();
+        await saveToMongo(localDb);
+        return localDb;
+      }
+    } catch (err) {
+      console.error('Error during MongoDB cloud hydration, using local data:', err);
+    }
+  }
+  return getDatabase();
 }
 
 // Security: Enforce Exactly One Admin Rule
