@@ -79,6 +79,39 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       updatedTrip.odometerEnd = Number(body.odometerEnd);
     }
 
+    if (body.vehicleId) {
+      updatedTrip.vehicleId = body.vehicleId;
+    }
+    if (body.driverId) {
+      updatedTrip.driverId = body.driverId;
+    }
+    if (body.odometerStart !== undefined && body.odometerStart !== null && body.odometerStart !== '') {
+      updatedTrip.odometerStart = Number(body.odometerStart);
+    }
+
+    // If trip started / dispatched
+    if (body.tripStatus === 'in_progress') {
+      if (!updatedTrip.tripStartDate || prevStatus !== 'in_progress') {
+        updatedTrip.tripStartDate = body.tripStartDate || new Date().toISOString();
+      }
+      // Notify assigned driver in their portal
+      const assignedDriver = db.drivers.find((d) => d.id === updatedTrip.driverId);
+      const assignedVeh = db.vehicles.find((v) => v.id === updatedTrip.vehicleId);
+      if (assignedDriver && assignedDriver.userId) {
+        db.notifications.unshift({
+          id: `notif_${Date.now()}`,
+          targetUserId: assignedDriver.userId,
+          type: 'trip_update',
+          title: `Trip Dispatched: ${updatedTrip.tripNumber}`,
+          message: `Trip ${updatedTrip.tripNumber} on vehicle ${assignedVeh?.regNumber || 'fleet vehicle'} is now IN PROGRESS. Route: ${updatedTrip.loadingLocation} -> ${updatedTrip.deliveryLocation}.`,
+          link: '/driver/trips',
+          isRead: false,
+          priority: 'high',
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
     // If trip completed
     if (body.tripStatus === 'completed') {
       if (!updatedTrip.actualCompletionDate) {

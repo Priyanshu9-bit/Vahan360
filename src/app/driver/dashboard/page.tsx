@@ -413,6 +413,7 @@ export default function DriverDashboardPage() {
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 space-y-1">
+                  <div>Assigned Vehicle: <b className="text-white font-mono">{activeTrip.vehicleReg}</b> {activeTrip.vehicleName ? `(${activeTrip.vehicleName})` : ''}</div>
                   <div>Cargo: <b className="text-white">{activeTrip.goodsDescription}</b> ({activeTrip.weightKg} kg)</div>
                   <div>Consignee Phone: <b className="text-white">{activeTrip.customerPhone}</b></div>
                   <div>Starting Odometer: <b className="text-white font-mono">{activeTrip.odometerStart} km</b></div>
@@ -457,6 +458,7 @@ export default function DriverDashboardPage() {
             <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider text-[10px] border-b border-slate-200">
               <tr>
                 <th className="py-2.5 px-3">Trip #</th>
+                <th className="py-2.5 px-3">Vehicle</th>
                 <th className="py-2.5 px-3">Route (From &rarr; To)</th>
                 <th className="py-2.5 px-3">Cargo Details</th>
                 <th className="py-2.5 px-3">Customer Phone</th>
@@ -468,6 +470,10 @@ export default function DriverDashboardPage() {
               {trips.map((t: any) => (
                 <tr key={t.id} className="hover:bg-slate-50/70">
                   <td className="py-3 px-3 font-mono font-bold text-blue-700">{t.tripNumber}</td>
+                  <td className="py-3 px-3">
+                    <span className="font-bold text-slate-900 block font-mono">{t.vehicleReg || '—'}</span>
+                    <span className="text-[10px] text-slate-400">{t.vehicleName}</span>
+                  </td>
                   <td className="py-3 px-3">
                     <span className="font-semibold text-slate-900 block">{t.loadingLocation} &rarr; {t.deliveryLocation}</span>
                   </td>

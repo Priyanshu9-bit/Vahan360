@@ -125,3 +125,75 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Failed to update vehicle' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await requireAdmin();
+    const { id } = await params;
+    const db = getDatabase();
+
+    const vehicleIndex = db.vehicles.findIndex((v) => v.id === id);
+    if (vehicleIndex === -1) {
+      return NextResponse.json({ error: 'Vehicle not found' }, { status: 404 });
+    }
+
+    const vehicle = db.vehicles[vehicleIndex];
+
+    // Check if vehicle has an active in_progress trip
+    const activeTrip = db.trips.find(
+      (t) => (t.vehicleId === id || (t as any).vehicleReg === vehicle.regNumber) && t.tripStatus === 'in_progress'
+    );
+    if (activeTrip) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete vehicle ${vehicle.regNumber} while it is in transit on active Trip #${activeTrip.tripNumber}. Please complete or re-assign the trip first.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Unassign this vehicle from any assigned drivers
+    db.drivers.forEach((drv) => {
+      if (drv.assignedVehicleId === id) {
+        drv.assignedVehicleId = undefined;
+        drv.updatedAt = new Date().toISOString();
+      }
+    });
+
+    // If there are planned or assigned trips on this vehicle, unassign the vehicle or mark notes
+    db.trips.forEach((trip) => {
+      if (trip.vehicleId === id && trip.tripStatus !== 'completed' && trip.tripStatus !== 'cancelled') {
+        trip.vehicleId = '';
+        trip.tripStatus = 'planned';
+        trip.notes = trip.notes
+          ? `${trip.notes}\n[Vehicle ${vehicle.regNumber} deleted - Reassign vehicle]`
+          : `[Vehicle ${vehicle.regNumber} deleted - Reassign vehicle]`;
+      }
+    });
+
+    // Remove vehicle documents
+    db.documents = db.documents.filter((d) => d.vehicleId !== id);
+
+    // Remove vehicle from db
+    db.vehicles.splice(vehicleIndex, 1);
+
+    logAudit(
+      admin.id,
+      admin.name,
+      'admin',
+      'DELETE_VEHICLE',
+      'Vehicle',
+      `Permanently deleted vehicle ${vehicle.regNumber} (${vehicle.name}) from fleet`,
+      id
+    );
+
+    saveDatabase(db);
+    return NextResponse.json({ success: true, message: `Vehicle ${vehicle.regNumber} deleted successfully.` });
+  } catch (err: any) {
+    if (err.message === 'UNAUTHORIZED' || err.message === 'FORBIDDEN_ADMIN_ONLY') {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+    }
+    return NextResponse.json({ error: 'Failed to delete vehicle' }, { status: 500 });
+  }
+}
+

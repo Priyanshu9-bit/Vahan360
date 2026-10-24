@@ -8,8 +8,15 @@ export async function GET() {
     const { user, driver } = await requireApprovedDriver();
     const db = getDatabase();
 
-    // 1. Assigned Vehicle (strip purchase price, loan info, profit numbers)
-    const rawVehicle = db.vehicles.find((v) => v.id === driver.assignedVehicleId);
+    // 1. Assigned Vehicle (dynamically check permanent assigned vehicle or currently active trip vehicle)
+    let vehicleIdToUse = driver.assignedVehicleId;
+    if (!vehicleIdToUse) {
+      const currentTrip = db.trips.find((t) => t.driverId === driver.id && (t.tripStatus === 'in_progress' || t.tripStatus === 'assigned'));
+      if (currentTrip && currentTrip.vehicleId) {
+        vehicleIdToUse = currentTrip.vehicleId;
+      }
+    }
+    const rawVehicle = db.vehicles.find((v) => v.id === vehicleIdToUse);
     let assignedVehicle = null;
     let vehicleDocs: any[] = [];
     if (rawVehicle) {
@@ -45,12 +52,18 @@ export async function GET() {
       .filter((t) => t.driverId === driver.id)
       .map((t) => {
         const cust = db.customers.find((c) => c.id === t.customerId);
+        const veh = db.vehicles.find((v) => v.id === t.vehicleId || (v.regNumber && (t as any).vehicleReg === v.regNumber));
         return {
           id: t.id,
           tripNumber: t.tripNumber,
           bookingDate: t.bookingDate,
           customerName: cust?.name || 'Customer',
           customerPhone: t.customerContactPhone,
+          vehicleId: t.vehicleId,
+          vehicleReg: veh?.regNumber || 'Assigned Fleet Vehicle',
+          vehicleName: veh?.name || '',
+          vehicleModel: veh?.model || '',
+          vehicleFuelType: veh?.fuelType || 'Diesel',
           loadingLocation: t.loadingLocation,
           deliveryLocation: t.deliveryLocation,
           goodsDescription: t.goodsDescription,
