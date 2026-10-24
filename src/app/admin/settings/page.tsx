@@ -18,6 +18,7 @@ import {
   Database,
   Cloud,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
@@ -90,6 +91,36 @@ export default function SettingsPage() {
     newPassword: '',
     confirmPassword: '',
   });
+
+  // Factory Reset State
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState('');
+
+  const handleFactoryReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPassword) return;
+    setResetting(true);
+    setResetError('');
+    try {
+      const res = await fetch('/api/admin/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResetError(data.error || 'Failed to execute factory reset.');
+        setResetting(false);
+        return;
+      }
+      window.location.replace('/setup');
+    } catch {
+      setResetError('Network error executing factory reset.');
+      setResetting(false);
+    }
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -846,6 +877,94 @@ export default function SettingsPage() {
               className="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-md cursor-pointer"
             >
               Execute Ownership Transfer
+            </button>
+          </div>
+        </form>
+      </Modal>
+      {/* Danger Zone: Factory Reset Section */}
+      <div className="bg-rose-50/60 rounded-2xl p-6 border-2 border-rose-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-rose-200/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center">
+              <Trash2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-rose-950">Danger Zone: Complete Factory Reset</h3>
+              <p className="text-[11px] text-rose-700">Wipe all fleet vehicles, drivers, trips, expenses, and restart as a brand-new system</p>
+            </div>
+          </div>
+          <span className="text-[10px] uppercase font-black px-2.5 py-1 rounded-full bg-rose-200 text-rose-900 border border-rose-300">
+            Irreversible
+          </span>
+        </div>
+
+        <p className="text-xs text-rose-800 leading-relaxed">
+          Executing a factory reset wipes both local storage and your MongoDB Atlas cloud database back to 0 records. The current admin session will be terminated and you will be directed to the initial setup wizard to start fresh.
+        </p>
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="button"
+            onClick={() => { setResetModalOpen(true); setResetPassword(''); setResetError(''); }}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Factory Reset Database...</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Factory Reset Confirmation Modal */}
+      <Modal
+        isOpen={resetModalOpen}
+        onClose={() => setResetModalOpen(false)}
+        title="Confirm Complete Factory Reset"
+        subtitle="This action will permanently wipe all fleet vehicles, trips, drivers, expenses, and accounts."
+        maxWidth="md"
+      >
+        <form onSubmit={handleFactoryReset} className="space-y-4">
+          <div className="p-3 bg-rose-100/70 border border-rose-300 rounded-xl text-rose-950 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong>WARNING:</strong> This action cannot be undone. All fleet records across local files and MongoDB Atlas will be reset to 0.
+            </p>
+          </div>
+
+          {resetError && (
+            <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-xs font-semibold">
+              {resetError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Enter Admin Password to Authorize Reset *
+            </label>
+            <input
+              type="password"
+              required
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              placeholder="Enter your current password"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-rose-500 focus:outline-hidden"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              disabled={resetting}
+              onClick={() => setResetModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={resetting || !resetPassword}
+              className="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-md cursor-pointer disabled:opacity-50"
+            >
+              {resetting ? 'Wiping Database...' : 'Yes, Permanently Reset Everything'}
             </button>
           </div>
         </form>
