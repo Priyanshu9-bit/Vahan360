@@ -52,20 +52,10 @@ export function Logo({ className = '', size = 'md', showTagline = false, light =
         </span>
       </div>
 
-      <div className="flex flex-col">
-        <div className="flex items-center gap-1.5 leading-none">
-          <span className={`font-black tracking-tight ${textSizes[size]} ${light ? 'text-white' : 'text-slate-900'}`}>
-            VAHAN<span className="text-blue-600">360</span>
-          </span>
-          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-blue-100 text-blue-800 border border-blue-200">
-            FLEET
-          </span>
-        </div>
-        {showTagline && (
-          <span className={`text-[11px] font-medium tracking-tight mt-0.5 ${light ? 'text-slate-300' : 'text-slate-500'}`}>
-            Complete Control of Your Fleet.
-          </span>
-        )}
+      <div className="flex items-center leading-none">
+        <span className={`font-black tracking-tight ${textSizes[size]} ${light ? 'text-white' : 'text-slate-900'}`}>
+          Vahaan<span className="text-blue-500">360</span>
+        </span>
       </div>
     </div>
   );

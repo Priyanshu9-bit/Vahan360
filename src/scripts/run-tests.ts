@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { getDatabase, saveDatabase, getSingleAdmin, canCreateAdmin, getDemoDatabase, resetDatabaseToEmpty, getCleanEmptyDatabase } from '../lib/db';
 import { generateFullTxtBackup, validateTxtBackup, restoreFromValidatedBackup, generateDocumentsZip } from '../lib/backup';
 import { calculateTripProfit, calculateFinancialSummary, calculateVehicleProfitability, computeDocumentStatus, calculateDriverSettlementSummary } from '../lib/accounting';
@@ -20,7 +22,9 @@ async function runAllTests() {
   console.log('   VAHAN360 - AUTOMATED SYSTEM ACCEPTANCE TEST SUITE');
   console.log('======================================================\n');
 
-  // Preserve live database state before running tests
+  // Preserve live database state and raw file before running tests
+  const dbFilePath = path.join(process.cwd(), 'data', 'vahan360_db.json');
+  const rawLiveContent = fs.existsSync(dbFilePath) ? fs.readFileSync(dbFilePath, 'utf8') : null;
   const liveDbSnapshot = JSON.parse(JSON.stringify(getDatabase()));
 
   // Test Clean Initial State
@@ -232,8 +236,12 @@ async function runAllTests() {
   testDb.drivers.splice(remIndex, 1);
   assert(testDb.drivers.length === drvCountBefore - 1, 'Driver 2 successfully removed from drivers roster');
 
-  // Restore live database snapshot so user's real business data is 100% preserved
-  saveDatabase(liveDbSnapshot);
+  // Restore live database snapshot so user's real business data is 100% preserved byte-for-byte
+  if (rawLiveContent) {
+    fs.writeFileSync(dbFilePath, rawLiveContent, 'utf8');
+  } else {
+    saveDatabase(liveDbSnapshot);
+  }
 
   // Final Summary
   console.log('\n======================================================');

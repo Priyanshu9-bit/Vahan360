@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Logo } from './Logo';
+import { InstallAppButton } from './InstallAppButton';
 
 interface DriverSidebarProps {
   isOpen?: boolean;
@@ -116,8 +117,9 @@ export function DriverSidebar({
           </div>
         )}
 
-        {/* Driver Profile & Logout */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/60">
+        {/* Driver Profile & App Install */}
+        <div className="p-3 border-t border-slate-800 bg-slate-950/60 space-y-2.5">
+          <InstallAppButton />
           <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white font-bold text-xs shrink-0">

@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import bcrypt from 'bcryptjs';
-import bundledDbData from '../../data/vahan360_db.json';
 import {
   DatabaseSchema,
   User,
@@ -932,42 +931,46 @@ export function getDemoDatabase(): DatabaseSchema {
   };
 }
 
-// In-memory cache with atomic file sync
+// High-reliability file sync with timestamp-based cache invalidation
 let cachedDb: DatabaseSchema | null = null;
+let lastLoadedMtime = 0;
 
 export function getDatabase(): DatabaseSchema {
-  if (cachedDb) return cachedDb;
-
   ensureDirectories();
 
-  // 1. Try reading from writable /tmp directory if updated during current serverless session
+  // 1. Try reading from primary local data file
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const stat = fs.statSync(DB_FILE);
+      if (!cachedDb || stat.mtimeMs > lastLoadedMtime) {
+        const data = fs.readFileSync(DB_FILE, 'utf-8');
+        cachedDb = JSON.parse(data) as DatabaseSchema;
+        lastLoadedMtime = stat.mtimeMs;
+      }
+      return cachedDb;
+    }
+  } catch (err) {
+    console.error('Error reading primary database file:', err);
+  }
+
+  // 2. Try reading from serverless /tmp fallback file
   try {
     if (fs.existsSync(TMP_DB_FILE)) {
-      const data = fs.readFileSync(TMP_DB_FILE, 'utf-8');
-      cachedDb = JSON.parse(data) as DatabaseSchema;
+      const stat = fs.statSync(TMP_DB_FILE);
+      if (!cachedDb || stat.mtimeMs > lastLoadedMtime) {
+        const data = fs.readFileSync(TMP_DB_FILE, 'utf-8');
+        cachedDb = JSON.parse(data) as DatabaseSchema;
+        lastLoadedMtime = stat.mtimeMs;
+      }
       return cachedDb;
     }
   } catch {}
 
-  // 2. Try reading from local data/ directory
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
-      cachedDb = JSON.parse(data) as DatabaseSchema;
-      return cachedDb;
-    }
-  } catch (err) {
-    console.error('Error reading database file from local path:', err);
-  }
+  // 3. If in-memory cache exists, return it
+  if (cachedDb) return cachedDb;
 
-  // 3. Guaranteed bundled fallback (works on Vercel even if data/ directory is not copied)
-  if (bundledDbData && typeof bundledDbData === 'object' && Array.isArray((bundledDbData as any).users)) {
-    cachedDb = JSON.parse(JSON.stringify(bundledDbData)) as DatabaseSchema;
-    return cachedDb;
-  }
-
-  // 4. Create initial database fallback
-  cachedDb = getInitialDatabase();
+  // 4. Create initial clean database if no database file exists yet
+  cachedDb = getCleanEmptyDatabase();
   saveDatabase(cachedDb);
   return cachedDb;
 }
@@ -979,23 +982,28 @@ export function saveDatabase(db: DatabaseSchema): void {
 
   const jsonStr = JSON.stringify(db, null, 2);
 
-  // 1. Try persistent write to local directory (local dev / persistent servers)
+  // 1. Synchronously write directly to primary DB_FILE
   try {
-    const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
-    fs.writeFileSync(tempFile, jsonStr, 'utf-8');
-    fs.renameSync(tempFile, DB_FILE);
+    fs.writeFileSync(DB_FILE, jsonStr, 'utf-8');
+    try {
+      lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
+    } catch {}
   } catch (err) {
-    // Local directory is read-only (e.g. Vercel)
+    // Attempt atomic write via temporary file if direct write encounters permission
+    try {
+      const tempFile = `${DB_FILE}.tmp.${Date.now()}`;
+      fs.writeFileSync(tempFile, jsonStr, 'utf-8');
+      fs.renameSync(tempFile, DB_FILE);
+      lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
+    } catch (e) {
+      console.error('Save to local DB_FILE failed:', e);
+    }
   }
 
-  // 2. Also write to /tmp on serverless environments
+  // 2. Also mirror to serverless TMP_DB_FILE for fallback resilience
   try {
-    const tempTmpFile = `${TMP_DB_FILE}.tmp.${Date.now()}`;
-    fs.writeFileSync(tempTmpFile, jsonStr, 'utf-8');
-    fs.renameSync(tempTmpFile, TMP_DB_FILE);
-  } catch (err) {
-    // Suppress write errors in restricted containers
-  }
+    fs.writeFileSync(TMP_DB_FILE, jsonStr, 'utf-8');
+  } catch {}
 }
 
 // Security: Enforce Exactly One Admin Rule

@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { Logo } from '@/components/Logo';
+
 export default function HomePage() {
   const router = useRouter();
 
@@ -39,9 +41,9 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
-      <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-slate-400 text-sm font-medium">Redirecting to Vahan360...</p>
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white space-y-4">
+      <Logo size="lg" light />
+      <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
