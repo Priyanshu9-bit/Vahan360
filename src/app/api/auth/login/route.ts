@@ -39,53 +39,62 @@ export async function POST(request: Request) {
   try {
     const { identifier, password, pin, loginMode } = await request.json();
 
-    const db = getDatabase();
-    const admin = db.users.find((u) => u.role === 'admin');
     const cleanId = (identifier || '').trim().toLowerCase();
 
-    // 1. PIN mode validation
+    // 1. Mandatory Identifier check
+    if (!cleanId) {
+      return NextResponse.json(
+        { error: 'Please enter your registered email address or mobile number.' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Brute-Force Rate Limiting Lockout
+    const rateLimit = checkRateLimit(cleanId);
+    if (rateLimit.blocked) {
+      return NextResponse.json(
+        {
+          error: `Account locked due to multiple failed sign-in attempts. Please wait ${rateLimit.remainingMinutes} minute(s) before trying again to protect your account.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    const db = getDatabase();
+    const admin = db.users.find((u) => u.role === 'admin');
+
+    // 3. Credential presence validation
     if (loginMode === 'pin' && !pin) {
       return NextResponse.json({ error: 'Please enter your 6-digit Master Security PIN.' }, { status: 400 });
     }
-
-    // 2. Password mode validation
     if (loginMode !== 'pin' && !password && !pin) {
-      return NextResponse.json({ error: 'Please enter your password or Security PIN.' }, { status: 400 });
+      return NextResponse.json({ error: 'Please enter your password.' }, { status: 400 });
     }
 
-    // 3. User resolution:
-    // In PIN mode, if identifier is omitted or says 'admin'/'owner', default to the Fleet Admin
-    let user = null;
-    if ((loginMode === 'pin' && (!cleanId || cleanId === 'admin' || cleanId === 'owner')) || cleanId === 'admin' || cleanId === 'owner') {
-      user = admin || null;
-    }
+    // 4. Strict user resolution (No default admin fallback)
+    const cleanDigits = cleanId.replace(/\D/g, '');
+    const user = db.users.find((u) => {
+      // Email match
+      const uEmail = (u.email || '').toLowerCase().trim();
+      if (uEmail === cleanId) return true;
 
-    // Otherwise, search all users with maximum tolerance:
-    if (!user && cleanId) {
-      const cleanDigits = cleanId.replace(/\D/g, '');
-      user = db.users.find((u) => {
-        // Email match
-        const uEmail = (u.email || '').toLowerCase().trim();
-        if (uEmail === cleanId) return true;
+      // Full name match
+      const uName = (u.name || '').toLowerCase().trim();
+      if (uName === cleanId) return true;
 
-        // Full name match
-        const uName = (u.name || '').toLowerCase().trim();
-        if (uName === cleanId) return true;
+      // Raw phone string match
+      const uPhone = (u.phone || '').trim().toLowerCase();
+      if (uPhone === cleanId) return true;
 
-        // Raw phone string match
-        const uPhone = (u.phone || '').trim().toLowerCase();
-        if (uPhone === cleanId) return true;
+      // Digits-only match (country code tolerant)
+      const uDigits = (u.phone || '').replace(/\D/g, '');
+      if (cleanDigits.length >= 6 && uDigits.length >= 6) {
+        if (cleanDigits === uDigits) return true;
+        if (cleanDigits.endsWith(uDigits) || uDigits.endsWith(cleanDigits)) return true;
+      }
 
-        // Digits-only match (tolerant of country codes, prefixes, 9-12 digits)
-        const uDigits = (u.phone || '').replace(/\D/g, '');
-        if (cleanDigits.length >= 6 && uDigits.length >= 6) {
-          if (cleanDigits === uDigits) return true;
-          if (cleanDigits.endsWith(uDigits) || uDigits.endsWith(cleanDigits)) return true;
-        }
-
-        return false;
-      }) || null;
-    }
+      return false;
+    }) || null;
 
     if (!user) {
       if (!admin) {
@@ -97,10 +106,11 @@ export async function POST(request: Request) {
           { status: 404 }
         );
       }
+      recordFailedAttempt(cleanId);
       return NextResponse.json({ error: 'Invalid credentials or account not found.' }, { status: 401 });
     }
 
-    // 4. Authenticate credentials:
+    // 5. Authenticate credentials with bcrypt
     let isMatch = false;
     if (loginMode === 'pin' || (pin && !password)) {
       if (!user.securityPinHash) {
@@ -114,25 +124,34 @@ export async function POST(request: Request) {
         }
       } else {
         isMatch = bcrypt.compareSync(String(pin).trim(), user.securityPinHash);
-        if (!isMatch) {
-          if (password && bcrypt.compareSync(password, user.passwordHash)) {
-            isMatch = true;
-          } else {
-            return NextResponse.json({ error: 'Incorrect 6-digit Security PIN. Please try again.' }, { status: 401 });
-          }
+        if (!isMatch && password) {
+          isMatch = bcrypt.compareSync(password, user.passwordHash);
         }
       }
     } else {
       isMatch = bcrypt.compareSync(password, user.passwordHash);
-      if (!isMatch) {
-        // Also check if user entered their PIN in the password box by mistake
-        if (user.securityPinHash && bcrypt.compareSync(password.trim(), user.securityPinHash)) {
-          isMatch = true;
-        } else {
-          return NextResponse.json({ error: 'Invalid password. Please try again.' }, { status: 401 });
-        }
+      if (!isMatch && user.securityPinHash) {
+        isMatch = bcrypt.compareSync(password.trim(), user.securityPinHash);
       }
     }
+
+    if (!isMatch) {
+      recordFailedAttempt(cleanId);
+      try {
+        logAudit(
+          user.id,
+          user.name,
+          user.role,
+          'LOGIN_FAILED',
+          'Auth',
+          `Failed authentication attempt for ${user.role} "${user.name}" (${cleanId}).`
+        );
+      } catch {}
+      return NextResponse.json({ error: 'Invalid credentials. Please verify your password and try again.' }, { status: 401 });
+    }
+
+    // Successful login: reset failed counter
+    resetAttempts(cleanId);
 
     // 5. Check account status for drivers:
     if (user.role === 'driver') {

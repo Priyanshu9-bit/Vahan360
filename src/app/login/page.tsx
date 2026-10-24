@@ -192,8 +192,8 @@ export default function LoginPage() {
           <form className="space-y-4" onSubmit={handleLogin}>
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                <span>{loginMode === 'pin' ? 'Account Identifier (Optional for PIN)' : 'Email, Mobile Number, or Name'}</span>
-                {loginMode === 'pin' && <span className="text-[10px] text-emerald-400 font-bold uppercase">Default: Fleet Owner</span>}
+                <span>Email or 10-Digit Mobile Number</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">Required</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -201,10 +201,10 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="text"
-                  required={loginMode !== 'pin'}
+                  required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={loginMode === 'pin' ? 'Fleet Owner (or leave blank)' : 'Enter email, 10-digit mobile, or name'}
+                  placeholder="Enter registered email or mobile number"
                   className="block w-full pl-10 pr-3 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
               </div>
@@ -284,7 +284,7 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-400 mt-1.5">
-                  Quick 1-tap PIN sign in for fleet owner and administrator.
+                  Encrypted 6-digit security PIN verified against your account.
                 </p>
               </div>
             )}
@@ -301,28 +301,11 @@ export default function LoginPage() {
                 </span>
               ) : (
                 <>
-                  <span>Sign In to Vahan360</span>
+                  <span>Sign In Securely</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
-
-            {/* Quick Fill Owner Credentials Helper */}
-            <div className="pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
-              <span className="truncate">Fleet Owner: <strong className="text-slate-200">Sushanta Nayak</strong></span>
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginMode('password');
-                  setIdentifier('9938075395');
-                  setPassword('sushanta@123');
-                  setError('');
-                }}
-                className="shrink-0 px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-semibold cursor-pointer transition-all text-[11px]"
-              >
-                1-Tap Owner Fill &rarr;
-              </button>
-            </div>
           </form>
 
           {/* Driver Registration Callout */}
