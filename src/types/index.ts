@@ -10,6 +10,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   passwordHash: string;
+  securityPinHash?: string;
   avatarUrl?: string;
   createdAt: string;
   updatedAt: string;

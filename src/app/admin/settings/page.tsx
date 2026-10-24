@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   UserCheck,
   Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 
@@ -32,6 +33,15 @@ export default function SettingsPage() {
   });
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // 6-digit Master Security PIN state
+  const [pinData, setPinData] = useState({
+    pin: '',
+    confirmPin: '',
+    currentPassword: '',
+  });
+  const [savingPin, setSavingPin] = useState(false);
+  const [pinMsg, setPinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Ownership Transfer Modal State
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -77,6 +87,48 @@ export default function SettingsPage() {
       setPasswordMsg({ type: 'error', text: 'Network error. Please try again.' });
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleSavePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{6}$/.test(pinData.pin.trim())) {
+      setPinMsg({ type: 'error', text: 'PIN must be exactly 6 numeric digits (0-9).' });
+      return;
+    }
+    if (pinData.pin !== pinData.confirmPin) {
+      setPinMsg({ type: 'error', text: 'Security PIN and Confirm PIN do not match.' });
+      return;
+    }
+    if (!pinData.currentPassword) {
+      setPinMsg({ type: 'error', text: 'Please enter your current admin password to verify your identity.' });
+      return;
+    }
+
+    setSavingPin(true);
+    setPinMsg(null);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'set_security_pin',
+          pin: pinData.pin.trim(),
+          currentPassword: pinData.currentPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPinMsg({ type: 'error', text: data.error || 'Failed to save Security PIN.' });
+      } else {
+        setPinMsg({ type: 'success', text: '6-digit Master Security PIN saved and active!' });
+        setPinData({ pin: '', confirmPin: '', currentPassword: '' });
+        fetchSettings();
+      }
+    } catch {
+      setPinMsg({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setSavingPin(false);
     }
   };
 
@@ -303,6 +355,113 @@ export default function SettingsPage() {
           </div>
         </div>
       </form>
+
+      {/* 6-Digit Master Security PIN Section */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">6-Digit Master Security PIN</h3>
+              <p className="text-[11px] text-slate-500">
+                Secondary authorization code required to delete vehicles or restore backups
+              </p>
+            </div>
+          </div>
+          <span
+            className={`text-[10px] uppercase font-bold px-2.5 py-1 rounded-full border self-start sm:self-auto ${
+              adminUser?.hasSecurityPin
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}
+          >
+            {adminUser?.hasSecurityPin ? '✓ PIN Active & Protected' : 'PIN Not Configured (Using Password)'}
+          </span>
+        </div>
+
+        {pinMsg && (
+          <div
+            className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+              pinMsg.type === 'success'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border border-rose-200 text-rose-800'
+            }`}
+          >
+            {pinMsg.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{pinMsg.text}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSavePin} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                New 6-Digit PIN *
+              </label>
+              <input
+                type="password"
+                required
+                maxLength={6}
+                pattern="[0-9]{6}"
+                inputMode="numeric"
+                value={pinData.pin}
+                onChange={(e) => setPinData({ ...pinData, pin: e.target.value.replace(/\D/g, '') })}
+                placeholder="e.g. 729410"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono tracking-widest text-center text-sm font-bold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Confirm 6-Digit PIN *
+              </label>
+              <input
+                type="password"
+                required
+                maxLength={6}
+                pattern="[0-9]{6}"
+                inputMode="numeric"
+                value={pinData.confirmPin}
+                onChange={(e) => setPinData({ ...pinData, confirmPin: e.target.value.replace(/\D/g, '') })}
+                placeholder="Re-enter 6-digit PIN"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 font-mono tracking-widest text-center text-sm font-bold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Current Admin Password *
+              </label>
+              <input
+                type="password"
+                required
+                value={pinData.currentPassword}
+                onChange={(e) => setPinData({ ...pinData, currentPassword: e.target.value })}
+                placeholder="Required to set/change PIN"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+            <span className="text-[11px] text-slate-400">
+              Only numbers (0-9). This PIN is prompted before destructive actions like vehicle deletion.
+            </span>
+            <button
+              type="submit"
+              disabled={savingPin}
+              className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50 shrink-0 self-end sm:self-auto"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{savingPin ? 'Saving PIN...' : 'Save Security PIN'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Change Password Card */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">

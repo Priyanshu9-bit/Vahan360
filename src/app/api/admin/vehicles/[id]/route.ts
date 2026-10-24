@@ -139,6 +139,20 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
 
     const vehicle = db.vehicles[vehicleIndex];
 
+    // Check Master Security PIN if configured
+    const pinHeader = request.headers.get('x-security-pin');
+    if (admin.securityPinHash) {
+      if (!pinHeader) {
+        return NextResponse.json({ error: 'Master Security PIN required to delete this vehicle.', requirePin: true }, { status: 403 });
+      }
+      const bcrypt = (await import('bcryptjs')).default;
+      const isPinMatch = bcrypt.compareSync(pinHeader.trim(), admin.securityPinHash);
+      const isPasswordMatch = bcrypt.compareSync(pinHeader.trim(), admin.passwordHash);
+      if (!isPinMatch && !isPasswordMatch) {
+        return NextResponse.json({ error: 'Invalid Master Security PIN.', requirePin: true }, { status: 403 });
+      }
+    }
+
     // Check if vehicle has an active in_progress trip
     const activeTrip = db.trips.find(
       (t) => (t.vehicleId === id || (t as any).vehicleReg === vehicle.regNumber) && t.tripStatus === 'in_progress'

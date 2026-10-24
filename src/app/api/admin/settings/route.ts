@@ -14,6 +14,7 @@ export async function GET() {
         name: admin.name,
         email: admin.email,
         phone: admin.phone,
+        hasSecurityPin: !!admin.securityPinHash,
       },
     });
   } catch (err: any) {
@@ -30,6 +31,39 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { action } = body;
     const db = getDatabase();
+
+    if (action === 'set_security_pin') {
+      const { pin, currentPassword } = body;
+      if (!pin || !/^\d{6}$/.test(String(pin).trim())) {
+        return NextResponse.json({ error: 'Master Security PIN must be exactly 6 digits (numbers only).' }, { status: 400 });
+      }
+
+      const currentUser = db.users.find((u) => u.id === admin.id);
+      if (!currentUser) {
+        return NextResponse.json({ error: 'User account not found.' }, { status: 404 });
+      }
+
+      const bcrypt = (await import('bcryptjs')).default;
+      if (!currentPassword || !bcrypt.compareSync(currentPassword, currentUser.passwordHash)) {
+        return NextResponse.json({ error: 'Current admin password is required to set or change your Security PIN.' }, { status: 400 });
+      }
+
+      const salt = bcrypt.genSaltSync(10);
+      currentUser.securityPinHash = bcrypt.hashSync(String(pin).trim(), salt);
+      currentUser.updatedAt = new Date().toISOString();
+
+      logAudit(
+        admin.id,
+        admin.name,
+        'admin',
+        'SECURITY_PIN_UPDATED',
+        'Security',
+        `Admin configured/updated their 6-digit Master Security PIN.`
+      );
+
+      saveDatabase(db);
+      return NextResponse.json({ success: true, message: '6-digit Master Security PIN saved successfully!' });
+    }
 
     if (action === 'change_password') {
       const { currentPassword, newPassword } = body;

@@ -142,9 +142,17 @@ export default function VehiclesPage() {
     );
     if (!confirmed) return;
 
+    const enteredPin = prompt(
+      `🔒 Master Security Verification:\n\nTo delete vehicle ${veh.regNumber}, enter your 6-digit Master Security PIN (or Admin Password):`
+    );
+    if (!enteredPin) return;
+
     try {
       const res = await fetch(`/api/admin/vehicles/${veh.id}`, {
         method: 'DELETE',
+        headers: {
+          'x-security-pin': enteredPin.trim(),
+        },
       });
       if (res.ok) {
         alert(`Vehicle ${veh.regNumber} deleted successfully.`);
