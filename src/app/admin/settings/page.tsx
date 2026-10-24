@@ -14,8 +14,11 @@ import {
   AlertTriangle,
   UserCheck,
   Lock,
+  Sun,
+  Palette,
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<any>(null);
@@ -303,6 +306,29 @@ export default function SettingsPage() {
           </div>
         </div>
       </form>
+
+      {/* Appearance & Theme Card */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Palette className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Appearance & Theme</h3>
+              <p className="text-[11px] text-slate-500">Switch between light mode, dark mode, or follow system default</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div>
+            <p className="text-xs font-bold text-slate-800">Interface Display Theme</p>
+            <p className="text-[11px] text-slate-500">Choose your preferred visual styling across all dashboard screens</p>
+          </div>
+          <ThemeToggle variant="segmented" />
+        </div>
+      </div>
 
       {/* Change Password Card */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">

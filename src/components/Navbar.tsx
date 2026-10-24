@@ -17,6 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { formatDateTimeIST } from '@/lib/accounting';
+import { ThemeToggle } from './ThemeToggle';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -33,7 +34,7 @@ export function Navbar({
   subtitle,
   unreadCount = 0,
   userRole = 'admin',
-  userName = 'Priyanshu Dash',
+  userName = 'Sushanta Nayak',
 }: NavbarProps) {
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -149,50 +150,53 @@ export function Navbar({
     userRole === 'admin' ? '/admin/notifications' : '/driver/notifications';
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 sm:px-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 transition-colors duration-200">
       <div className="flex items-center gap-3">
         {onToggleSidebar && (
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg lg:hidden"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg lg:hidden"
             title="Open Menu"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
         <div>
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight flex items-center gap-2">
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight flex items-center gap-2">
             {title}
             {userRole === 'admin' && (
-              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                <Shield className="w-3 h-3 text-blue-600" /> Owner Console
+              <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <Shield className="w-3 h-3 text-blue-600 dark:text-blue-400" /> Owner Console
               </span>
             )}
           </h1>
-          {subtitle && <p className="text-xs text-slate-500 hidden sm:block">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">{subtitle}</p>}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* Dark & Light Theme Toggle */}
+        <ThemeToggle />
+
         {/* Language selector toggle */}
-        <div className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg bg-slate-50 text-slate-600 border border-slate-200">
+        <div className="flex items-center gap-1 text-xs font-semibold px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
           <Globe className="w-3.5 h-3.5 text-slate-400" />
           <span className="hidden sm:inline">Lang:</span>
-          <span className="text-blue-600 font-bold">EN</span>
-          <span className="text-slate-300">|</span>
-          <span className="text-slate-400 hover:text-slate-700 cursor-pointer" title="Hindi (Ready)">HI</span>
-          <span className="text-slate-300">|</span>
-          <span className="text-slate-400 hover:text-slate-700 cursor-pointer" title="Odia (Ready)">OD</span>
+          <span className="text-blue-600 dark:text-blue-400 font-bold">EN</span>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
+          <span className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer" title="Hindi (Ready)">HI</span>
+          <span className="text-slate-300 dark:text-slate-600">|</span>
+          <span className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer" title="Odia (Ready)">OD</span>
         </div>
 
         {/* Backup button quick link (Admin only) */}
         {userRole === 'admin' && (
           <Link
             href="/admin/backup"
-            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 transition-colors"
           >
-            <DatabaseBackup className="w-3.5 h-3.5 text-blue-600" />
+            <DatabaseBackup className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>Backup & Restore</span>
           </Link>
         )}
@@ -204,8 +208,8 @@ export function Navbar({
             onClick={handleToggleDropdown}
             className={`relative p-2 rounded-xl transition-all duration-150 ${
               dropdownOpen
-                ? 'bg-blue-50 text-blue-600 ring-2 ring-blue-500/20'
-                : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100'
+                ? 'bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 ring-2 ring-blue-500/20'
+                : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
             title={
               currentUnread > 0
@@ -213,7 +217,7 @@ export function Navbar({
                 : 'No notifications (All caught up)'
             }
           >
-            <Bell className={`w-5 h-5 ${currentUnread > 0 ? 'text-slate-800' : 'text-slate-500'}`} />
+            <Bell className={`w-5 h-5 ${currentUnread > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`} />
             {currentUnread > 0 ? (
               <span className="absolute top-1 right-1 flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-black text-white bg-rose-500 rounded-full animate-bounce shadow-xs">
                 {currentUnread > 9 ? '9+' : currentUnread}
@@ -223,9 +227,9 @@ export function Navbar({
 
           {/* Dropdown Popover */}
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
               {/* Header */}
-              <div className="px-4 py-3 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+              <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-black text-slate-900 tracking-tight">Notifications</h3>
                   {currentUnread > 0 ? (
@@ -343,13 +347,13 @@ export function Navbar({
         </div>
 
         {/* User Pill */}
-        <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+        <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+          <div className="w-8 h-8 rounded-full bg-slate-900 dark:bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
             {userName.charAt(0)}
           </div>
           <div className="hidden lg:block text-left">
-            <span className="block text-xs font-bold text-slate-800 leading-none">{userName}</span>
-            <span className="text-[10px] font-medium text-slate-500 capitalize">{userRole}</span>
+            <span className="block text-xs font-bold text-slate-800 dark:text-slate-100 leading-none">{userName}</span>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 capitalize">{userRole}</span>
           </div>
         </div>
       </div>

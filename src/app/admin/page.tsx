@@ -292,9 +292,9 @@ export default function AdminDashboardPage() {
                   contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="income" name="Freight Revenue" fill="#1e3a8a" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expenses" name="Operating Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="profit" name="Net Operating Profit" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="income" name="Freight Revenue" fill="#1e3a8a" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="expenses" name="Operating Expenses" fill="#f59e0b" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="profit" name="Net Operating Profit" fill="#10b981" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -318,6 +318,7 @@ export default function AdminDashboardPage() {
                     innerRadius={45}
                     outerRadius={70}
                     paddingAngle={3}
+                    isAnimationActive={false}
                   >
                     {(charts.expenseBreakdown || []).map((entry: any, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

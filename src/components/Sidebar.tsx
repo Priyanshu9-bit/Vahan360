@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -26,11 +26,32 @@ import { Logo } from './Logo';
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  user?: { name: string; role: string } | null;
 }
 
-export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
+export function Sidebar({ isOpen = true, onClose, user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [userProfile, setUserProfile] = useState<{ name: string; role: string } | null>(user || null);
+
+  useEffect(() => {
+    if (user) {
+      setUserProfile(user);
+      return;
+    }
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.authenticated && data.user) {
+          setUserProfile(data.user);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
+  const displayName = userProfile?.name || 'Sushanta Nayak';
+  const displayInitial = (displayName.charAt(0) || 'S').toUpperCase();
+  const displayRole = userProfile?.role === 'driver' ? 'Driver' : 'Fleet Owner (Admin)';
 
   const handleLogout = async () => {
     try {
@@ -143,13 +164,13 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/50 border border-slate-700/50">
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white font-bold text-xs shrink-0">
-                P
+                {displayInitial}
               </div>
               <div className="truncate">
-                <p className="text-xs font-semibold text-white truncate">Priyanshu Dash</p>
+                <p className="text-xs font-semibold text-white truncate">{displayName}</p>
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <p className="text-[10px] text-slate-400">Fleet Owner (Admin)</p>
+                  <p className="text-[10px] text-slate-400">{displayRole}</p>
                 </div>
               </div>
             </div>

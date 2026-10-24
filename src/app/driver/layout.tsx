@@ -147,7 +147,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
 
   // 3. Authenticated Driver View
   return (
-    <div className="min-h-screen bg-slate-50 flex relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex relative transition-colors duration-200">
       <DriverSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
