@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-10-24T16:09:17.518Z",
+  "updatedAt": "2026-10-24T16:33:13.502Z",
   "settings": {
     "id": "biz_01",
     "businessName": "Vahan360 Fleet Logistics",
@@ -16,7 +16,8 @@
     "autoBackupEnabled": true,
     "backupRetentionDays": 30,
     "createdAt": "2026-10-24T16:09:17.518Z",
-    "updatedAt": "2026-10-24T16:09:17.518Z"
+    "updatedAt": "2026-10-24T16:09:17.518Z",
+    "lastBackupDate": "2026-10-24T16:31:59.952Z"
   },
   "users": [],
   "vehicles": [],

@@ -197,74 +197,140 @@ export default function BackupPage() {
         </div>
       )}
 
-      {/* Main Download & Restore Action Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Card 1: Full Master Excel Workbook (.xlsx) */}
-        <div className="bg-white rounded-2xl p-6 border-2 border-emerald-500/30 shadow-md relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full pointer-events-none -mr-4 -mt-4" />
+      {/* Main Download & Export Action Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Per-Transaction Notes (.txt) - Clean Human Readable */}
+        <div className="bg-white rounded-2xl p-5 border-2 border-indigo-500/40 shadow-sm relative overflow-hidden flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-50 rounded-bl-full pointer-events-none -mr-4 -mt-4" />
           <div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-              <FileSpreadsheet className="w-5 h-5" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                Easy View
+              </span>
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Master Fleet Excel Workbook (.xlsx)</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-1">Transaction Notes (.txt)</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Download your complete fleet operational and financial ledger in Microsoft Excel format. Includes 8 dedicated worksheets: Executive Overview, Fleet Vehicles, Commercial Trips, Operating Expenses, Driver Salaries, Customer Ledger, Maintenance Records, and Traffic Challans.
+              Clean, 100% human-readable note file with chronological per-transaction ledger, daily cash flow, and zero machine code. Perfect for viewing in Notepad or on mobile.
+            </p>
+          </div>
+
+          <a
+            href="/api/backup/download-notes"
+            download
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-all shadow-md shadow-indigo-600/20"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Notes (.txt)</span>
+          </a>
+        </div>
+
+        {/* Card 2: Full System Backup (.txt) - Official Recovery */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <HardDrive className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                Recovery
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 mb-1">Full System Backup (.txt)</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              Official Vahan360 disaster recovery text file. Contains executive plain English report along with cryptographically verified restoration payload.
+            </p>
+          </div>
+
+          <a
+            href="/api/backup/download-txt"
+            download
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Backup (.txt)</span>
+          </a>
+        </div>
+
+        {/* Card 3: Master Excel Workbook (.xlsx) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                Excel
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 mb-1">Master Excel Sheet (.xlsx)</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-4">
+              Complete fleet accounting workbook in Excel format with 8 separate sheets for overview, trips, fuel & operating expenses, driver payroll, and challans.
             </p>
           </div>
 
           <a
             href="/api/backup/export-excel"
             download
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-md shadow-emerald-600/20"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-md shadow-emerald-600/20"
           >
             <Download className="w-4 h-4" />
-            <span>Download Master Excel Sheet (.xlsx)</span>
+            <span>Download Excel (.xlsx)</span>
           </a>
         </div>
 
-        {/* Card 2: Master Fleet Archive (.zip) */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+        {/* Card 4: Master Fleet Archive (.zip) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
           <div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-              <FileArchive className="w-5 h-5" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                <FileArchive className="w-5 h-5" />
+              </div>
+              <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-slate-100 text-slate-800 border border-slate-300">
+                Full Bundle
+              </span>
             </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Master Fleet Archive (.zip)</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-1">Master Fleet Archive (.zip)</h3>
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Download an all-in-one comprehensive ZIP archive containing your full database (.json), Excel workbook (.xlsx), CSV tables, plain-text disaster recovery file, and all uploaded compliance certificates.
+              All-in-one ZIP archive containing JSON database snapshot, transaction notes, Excel workbook, CSV tables, and all uploaded compliance documents.
             </p>
           </div>
 
           <a
             href="/api/backup/download-zip"
             download
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
           >
             <Download className="w-4 h-4" />
-            <span>Download Master Fleet Archive (.zip)</span>
+            <span>Download Archive (.zip)</span>
           </a>
         </div>
+      </div>
 
-        {/* Card 3: Restore Database */}
-        <div className="bg-white rounded-2xl p-6 border-2 border-amber-500/30 shadow-sm flex flex-col justify-between">
+      {/* Restore Banner Card */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <Upload className="w-5 h-5" />
+          </div>
           <div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
-              <Upload className="w-5 h-5" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900 mb-1">Restore from Backup</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Upload a previously generated Vahan360 TXT backup file to restore your entire commercial vehicle operations after server failure, data corruption, or database loss.
+            <h3 className="text-sm font-bold text-slate-900">Database Disaster Recovery & Restoration</h3>
+            <p className="text-xs text-slate-600 mt-0.5 max-w-2xl leading-relaxed">
+              Accidentally deleted data or moving to a new server? Upload any previously downloaded <code className="text-amber-800 font-bold bg-amber-100/60 px-1 py-0.5 rounded">Vahan360_Full_Backup_*.txt</code> file to immediately restore your entire fleet operations with zero loss.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setRestoreModalOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 transition-all shadow-md shadow-amber-600/20 cursor-pointer"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Restore from Backup</span>
-          </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setRestoreModalOpen(true)}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 transition-all shadow-md shadow-amber-600/20 shrink-0 cursor-pointer"
+        >
+          <Upload className="w-4 h-4" />
+          <span>Restore from Backup</span>
+        </button>
       </div>
 
       {/* CSV Exports Grid */}

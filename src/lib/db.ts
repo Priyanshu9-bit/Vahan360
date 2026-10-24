@@ -1014,6 +1014,14 @@ export function saveDatabase(db: DatabaseSchema): void {
     fs.writeFileSync(AUTOSAVE_BACKUP_FILE, jsonStr, 'utf-8');
   } catch {}
 
+  // Automatically maintain live human-readable transaction notes on disk as transactions occur
+  try {
+    const { generateTransactionsNote } = require('./backup');
+    const { content: liveNoteContent } = generateTransactionsNote(db);
+    const liveNotePath = path.join(BACKUPS_DIR, 'LATEST_TRANSACTIONS_NOTES.txt');
+    fs.writeFileSync(liveNotePath, liveNoteContent, 'utf-8');
+  } catch {}
+
   // 2. Synchronously write directly to primary DB_FILE
   try {
     fs.writeFileSync(DB_FILE, jsonStr, 'utf-8');

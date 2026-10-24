@@ -4,7 +4,7 @@ process.env.TEST_MODE = 'true';
 import fs from 'fs';
 import path from 'path';
 import { getDatabase, saveDatabase, getSingleAdmin, canCreateAdmin, getDemoDatabase, resetDatabaseToEmpty, getCleanEmptyDatabase } from '../lib/db';
-import { generateFullTxtBackup, validateTxtBackup, restoreFromValidatedBackup, generateDocumentsZip } from '../lib/backup';
+import { generateFullTxtBackup, generateTransactionsNote, validateTxtBackup, restoreFromValidatedBackup, generateDocumentsZip } from '../lib/backup';
 import { calculateTripProfit, calculateFinancialSummary, calculateVehicleProfitability, computeDocumentStatus, calculateDriverSettlementSummary } from '../lib/accounting';
 
 let passed = 0;
@@ -29,6 +29,10 @@ async function runAllTests() {
   const dbFilePath = path.join(process.cwd(), 'data', 'vahan360_db.json');
   const rawLiveContent = fs.existsSync(dbFilePath) ? fs.readFileSync(dbFilePath, 'utf8') : null;
   const liveDbSnapshot = JSON.parse(JSON.stringify(getDatabase()));
+
+  // Snapshot backups directory to clean up test artifacts after tests
+  const backupsDir = path.join(process.cwd(), 'data', 'backups');
+  const existingBackupsBefore = fs.existsSync(backupsDir) ? fs.readdirSync(backupsDir) : [];
 
   // Test Clean Initial State
   const cleanDb = getCleanEmptyDatabase();
@@ -135,6 +139,14 @@ async function runAllTests() {
   assert(content.includes('--- SECTION: TRIPS ---'), 'Backup includes Trips section');
   assert(!content.includes('$2a$') && !content.includes('$2b$'), 'CRITICAL: Password hashes are strictly EXCLUDED from backup file');
   assert(checksum.length === 64, `SHA-256 Checksum generated: ${checksum.slice(0, 16)}...`);
+
+  // Test Transaction Notes Generation (Clean Human-Readable Per-Transactions)
+  const notesResult = generateTransactionsNote(db);
+  assert(notesResult.filename.startsWith('Vahan360_Transaction_Notes_'), `Transaction Notes filename verified: ${notesResult.filename}`);
+  assert(notesResult.content.includes('VAHAN360 - FLEET TRANSACTIONS & BUSINESS NOTES'), 'Notes file contains official header');
+  assert(notesResult.content.includes('CHRONOLOGICAL MASTER TRANSACTION LEDGER'), 'Notes file contains Chronological Master Transaction Ledger');
+  assert(notesResult.content.includes('[TXN #001]'), 'Notes file contains formatted per-transaction entries');
+  assert(!notesResult.content.includes('BEGIN DATA SECTIONS') && !notesResult.content.includes('--- SECTION:'), 'Notes file is 100% human-readable with zero encoded machine sections');
 
   // Test Group 10: Backup Validation & Restoration
   console.log('\n--- TEST GROUP 10: BACKUP RESTORATION & INTEGRITY ---');
@@ -248,6 +260,18 @@ async function runAllTests() {
     } catch {}
   } else {
     saveDatabase(liveDbSnapshot);
+  }
+
+  // Clean up test backup files created during test run so data/backups remains clean
+  if (fs.existsSync(backupsDir)) {
+    const filesAfter = fs.readdirSync(backupsDir);
+    for (const f of filesAfter) {
+      if (!existingBackupsBefore.includes(f) && f !== 'vahan360_autosave.json') {
+        try {
+          fs.unlinkSync(path.join(backupsDir, f));
+        } catch {}
+      }
+    }
   }
 
   // Final Summary

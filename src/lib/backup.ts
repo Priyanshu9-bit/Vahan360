@@ -329,18 +329,416 @@ export function generateFullTxtBackup(db: DatabaseSchema): { content: string; fi
   return { content, filename, checksum };
 }
 
+// Generate pure, human-readable Transaction Notes & Audit Ledger (.txt) with per-transaction entries
+export function generateTransactionsNote(db: DatabaseSchema): { content: string; filename: string } {
+  const ts = getBackupTimestamp();
+  const filename = `Vahan360_Transaction_Notes_${ts}.txt`;
+
+  // Format date in Indian Standard Time (IST)
+  const formattedDate = new Date().toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  // High-level financial metrics
+  const totalFreight = db.trips.reduce((sum, t) => sum + (t.freightAmount || 0), 0);
+  const totalAdvances = db.trips.reduce((sum, t) => sum + (t.advanceReceived || 0), 0);
+  const totalTripPayments = db.tripPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalCollections = totalAdvances + totalTripPayments;
+  const customerPending = Math.max(0, totalFreight - totalCollections);
+
+  const approvedExpenses = db.expenses.filter((e) => e.approvalStatus === 'approved');
+  const totalApprovedExpenses = approvedExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  const totalSalariesPaid = db.salaryPayments.reduce((sum, sp) => sum + (sp.amount || 0), 0);
+  const totalChallansPaid = db.challans
+    .filter((c) => c.paymentStatus === 'paid')
+    .reduce((sum, c) => sum + (c.fineAmount || 0), 0);
+  const totalChallansPending = db.challans
+    .filter((c) => c.paymentStatus === 'pending')
+    .reduce((sum, c) => sum + (c.fineAmount || 0), 0);
+
+  const netFleetProfit = totalFreight - totalApprovedExpenses;
+  const netCashSurplus = totalCollections - totalApprovedExpenses - totalSalariesPaid - totalChallansPaid;
+
+  // Compile Unified Chronological Transactions (Per-Transactions Ledger)
+  interface UnifiedTxn {
+    date: string;
+    rawTime: number;
+    flow: 'CASH IN (+)' | 'CASH OUT (-)' | 'FREIGHT BILLED' | 'MAINTENANCE' | 'PENALTY DUE';
+    title: string;
+    amount: number;
+    category: string;
+    party: string;
+    vehicle: string;
+    driver: string;
+    paymentMode: string;
+    refNo: string;
+    status: string;
+    notes: string;
+  }
+
+  const allTxns: UnifiedTxn[] = [];
+
+  // 1. Trips Freight Billed & Advances
+  for (const t of db.trips) {
+    const veh = db.vehicles.find((v) => v.id === t.vehicleId);
+    const drv = db.drivers.find((d) => d.id === t.driverId);
+    const cust = db.customers.find((c) => c.id === t.customerId);
+    const tripDate = t.bookingDate || t.tripStartDate || (t.createdAt ? t.createdAt.slice(0, 10) : '2026-10-24');
+    const rawTime = new Date(tripDate).getTime() || 0;
+
+    // Freight billing record
+    allTxns.push({
+      date: tripDate,
+      rawTime,
+      flow: 'FREIGHT BILLED',
+      category: 'Trip Freight Invoice',
+      title: `Freight Billed on Trip #${t.tripNumber}`,
+      amount: t.freightAmount || 0,
+      party: cust ? cust.name : (t.customerName || 'Direct Party'),
+      vehicle: veh ? `${veh.regNumber} (${veh.name})` : 'Unassigned',
+      driver: drv ? drv.fullName : 'Unassigned',
+      paymentMode: 'Invoice / Freight Contract',
+      refNo: t.tripNumber,
+      status: t.tripStatus === 'completed' ? 'Delivered & Billed' : t.tripStatus.toUpperCase(),
+      notes: `Route: ${t.loadingLocation} -> ${t.deliveryLocation} | Cargo: ${t.goodsDescription} (${Number(t.weightKg || 0).toLocaleString('en-IN')} kg)`,
+    });
+
+    // Advance payment record if collected
+    if (t.advanceReceived && t.advanceReceived > 0) {
+      allTxns.push({
+        date: tripDate,
+        rawTime: rawTime + 1,
+        flow: 'CASH IN (+)',
+        category: 'Customer Advance',
+        title: `Advance Freight Received for Trip #${t.tripNumber}`,
+        amount: t.advanceReceived,
+        party: cust ? cust.name : (t.customerName || 'Direct Party'),
+        vehicle: veh ? veh.regNumber : 'N/A',
+        driver: drv ? drv.fullName : 'N/A',
+        paymentMode: 'Cash / Direct Advance',
+        refNo: t.tripNumber,
+        status: 'Collected & Credited',
+        notes: `Advance freight collected at loading point (${t.loadingLocation})`,
+      });
+    }
+  }
+
+  // 2. Customer Trip Payments (Collections)
+  for (const p of db.tripPayments) {
+    const t = db.trips.find((x) => x.id === p.tripId);
+    const cust = db.customers.find((c) => c.id === p.customerId);
+    const veh = t ? db.vehicles.find((v) => v.id === t.vehicleId) : null;
+    const drv = t ? db.drivers.find((d) => d.id === t.driverId) : null;
+    const pDate = p.paymentDate || (p.createdAt ? p.createdAt.slice(0, 10) : '2026-10-24');
+    const rawTime = new Date(pDate).getTime() || 0;
+
+    allTxns.push({
+      date: pDate,
+      rawTime: rawTime + 2,
+      flow: 'CASH IN (+)',
+      category: 'Customer Collection',
+      title: `Trip Freight Payment (${t ? t.tripNumber : 'Trip Ledger'})`,
+      amount: p.amount || 0,
+      party: cust ? cust.name : 'Customer',
+      vehicle: veh ? `${veh.regNumber} (${veh.name})` : 'Fleet',
+      driver: drv ? drv.fullName : 'N/A',
+      paymentMode: p.paymentMethod ? p.paymentMethod.toUpperCase() : 'CASH',
+      refNo: p.transactionRef || p.id,
+      status: 'Received & Accounted',
+      notes: p.notes || `Settlement payment for trip ${t ? t.tripNumber : ''}`,
+    });
+  }
+
+  // 3. Operating Expenses
+  for (const e of db.expenses) {
+    const veh = db.vehicles.find((v) => v.id === e.vehicleId);
+    const drv = db.drivers.find((d) => d.id === e.driverId);
+    const eDate = e.expenseDate || (e.createdAt ? e.createdAt.slice(0, 10) : '2026-10-24');
+    const rawTime = new Date(eDate).getTime() || 0;
+
+    allTxns.push({
+      date: eDate,
+      rawTime,
+      flow: 'CASH OUT (-)',
+      category: `Operating Expense (${e.category.toUpperCase()})`,
+      title: `Fleet Expense: ${e.category.toUpperCase()} - ${e.description}`,
+      amount: e.amount || 0,
+      party: e.vendor || 'Direct Pump / Vendor',
+      vehicle: veh ? `${veh.regNumber} (${veh.name})` : 'Fleet General',
+      driver: drv ? drv.fullName : 'Admin / Office',
+      paymentMode: e.paymentMethod ? e.paymentMethod.toUpperCase() : 'CASH',
+      refNo: e.id,
+      status: e.approvalStatus === 'approved' ? 'Approved & Accounted' : e.approvalStatus.toUpperCase(),
+      notes: e.description || `${e.category} operating expenditure`,
+    });
+  }
+
+  // 4. Driver Salary & Advance Payments
+  for (const sp of db.salaryPayments) {
+    const drv = db.drivers.find((d) => d.id === sp.driverId);
+    const veh = drv?.assignedVehicleId ? db.vehicles.find((v) => v.id === drv.assignedVehicleId) : null;
+    const spDate = sp.paymentDate || (sp.createdAt ? sp.createdAt.slice(0, 10) : '2026-10-24');
+    const rawTime = new Date(spDate).getTime() || 0;
+
+    allTxns.push({
+      date: spDate,
+      rawTime,
+      flow: 'CASH OUT (-)',
+      category: `Driver Payroll (${sp.paymentType.toUpperCase()})`,
+      title: `Driver Payment: ${drv ? drv.fullName : 'Driver'} (${sp.paymentType.toUpperCase()})`,
+      amount: sp.amount || 0,
+      party: drv ? drv.fullName : 'Driver Staff',
+      vehicle: veh ? veh.regNumber : 'Not Assigned',
+      driver: drv ? drv.fullName : 'Driver',
+      paymentMode: sp.paymentMethod ? sp.paymentMethod.toUpperCase() : 'BANK_TRANSFER',
+      refNo: sp.referenceNo || sp.id,
+      status: 'Paid & Disbursed',
+      notes: sp.notes || `Driver ${sp.paymentType} disbursement`,
+    });
+  }
+
+  // 5. Vehicle Maintenance Records
+  for (const m of db.maintenanceRecords) {
+    const veh = db.vehicles.find((v) => v.id === m.vehicleId);
+    const mDate = m.serviceDate || (m.createdAt ? m.createdAt.slice(0, 10) : '2026-10-24');
+    const rawTime = new Date(mDate).getTime() || 0;
+
+    allTxns.push({
+      date: mDate,
+      rawTime,
+      flow: 'CASH OUT (-)',
+      category: `Maintenance (${m.serviceType.toUpperCase()})`,
+      title: `Vehicle Servicing: ${veh ? veh.regNumber : 'Fleet'} (${m.serviceType.toUpperCase()})`,
+      amount: m.totalCost || 0,
+      party: m.workshopName || 'Authorized Garage',
+      vehicle: veh ? `${veh.regNumber} (${veh.name})` : 'Fleet',
+      driver: 'Maintenance Team',
+      paymentMode: 'Service Account / Cash',
+      refNo: m.id,
+      status: 'Service Completed',
+      notes: `Parts: ${m.partsReplaced || 'General Service'} | Parts Cost: Rs. ${m.partsCost} | Labour: Rs. ${m.labourCost}`,
+    });
+  }
+
+  // 6. Traffic Challans
+  for (const c of db.challans) {
+    const veh = db.vehicles.find((v) => v.id === c.vehicleId);
+    const cDate = c.challanDate || (c.createdAt ? c.createdAt.slice(0, 10) : '2026-10-24');
+    const rawTime = new Date(cDate).getTime() || 0;
+
+    allTxns.push({
+      date: cDate,
+      rawTime,
+      flow: c.paymentStatus === 'paid' ? 'CASH OUT (-)' : 'PENALTY DUE',
+      category: 'Traffic Challan Fine',
+      title: `Traffic Penalty: Challan #${c.challanNumber}`,
+      amount: c.fineAmount || 0,
+      party: 'Traffic Police / State RTO',
+      vehicle: veh ? `${veh.regNumber} (${veh.name})` : 'Fleet',
+      driver: 'On-Duty Driver',
+      paymentMode: c.paymentStatus === 'paid' ? 'Online / Cash Settlement' : 'Unpaid Penalty',
+      refNo: c.challanNumber,
+      status: c.paymentStatus === 'paid' ? 'Paid & Resolved' : 'PENDING PAYMENT',
+      notes: `Violation: ${c.violationDescription}`,
+    });
+  }
+
+  // Sort chronologically
+  allTxns.sort((a, b) => a.date.localeCompare(b.date) || a.rawTime - b.rawTime);
+
+  // Format transactions section
+  const transactionsEnglish = allTxns.length > 0
+    ? allTxns.map((tx, idx) => {
+        const padIndex = String(idx + 1).padStart(3, '0');
+        return [
+          `--------------------------------------------------------------------------------`,
+          `[TXN #${padIndex}] Date: ${tx.date} | ${tx.flow} : Rs. ${tx.amount.toLocaleString('en-IN')}`,
+          `--------------------------------------------------------------------------------`,
+          `  • Transaction Title : ${tx.title}`,
+          `  • Category          : ${tx.category}`,
+          `  • Associated Party  : ${tx.party}`,
+          `  • Vehicle           : ${tx.vehicle}`,
+          `  • Driver Staff      : ${tx.driver}`,
+          `  • Payment Mode      : ${tx.paymentMode}`,
+          `  • Reference / ID    : ${tx.refNo}`,
+          `  • Status            : ${tx.status}`,
+          `  • Transaction Notes : ${tx.notes}`,
+        ].join('\n');
+      }).join('\n\n')
+    : '  (No transactions recorded yet. As you enter trips, expenses, and payments tomorrow,\n   every transaction will be recorded here chronologically.)';
+
+  // Per Vehicle Breakdown
+  const vehiclesEnglish = db.vehicles.length > 0
+    ? db.vehicles.map((v, i) => {
+        const vTrips = db.trips.filter((t) => t.vehicleId === v.id);
+        const vFreight = vTrips.reduce((sum, t) => sum + (t.freightAmount || 0), 0);
+        const vExpenses = db.expenses
+          .filter((e) => e.vehicleId === v.id && e.approvalStatus === 'approved')
+          .reduce((sum, e) => sum + (e.amount || 0), 0);
+        const vMaintenance = db.maintenanceRecords
+          .filter((m) => m.vehicleId === v.id)
+          .reduce((sum, m) => sum + (m.totalCost || 0), 0);
+        const vProfit = vFreight - (vExpenses + vMaintenance);
+        const assignedDriver = db.drivers.find((d) => d.id === v.assignedDriverId || d.assignedVehicleId === v.id);
+
+        return [
+          `Vehicle #${i + 1}: ${v.regNumber} (${v.name})`,
+          `  - Manufacturer / Model : ${v.manufacturer} ${v.model}`,
+          `  - Category / Fuel Type : ${v.vehicleType || 'Commercial Goods Carrier'} | ${v.fuelType}`,
+          `  - Current Odometer     : ${Number(v.currentOdometer || 0).toLocaleString('en-IN')} km`,
+          `  - Assigned Driver      : ${assignedDriver ? assignedDriver.fullName : 'None (Unassigned)'}`,
+          `  - Operational Status   : ${v.status === 'active' ? 'Active & In Service' : v.status}`,
+          `  - Commercial Trips Run : ${vTrips.length} Trips`,
+          `  - Total Freight Billed : Rs. ${vFreight.toLocaleString('en-IN')}`,
+          `  - Operating Expenses   : Rs. ${vExpenses.toLocaleString('en-IN')}`,
+          `  - Maintenance Servicing: Rs. ${vMaintenance.toLocaleString('en-IN')}`,
+          `  - Net Truck Profit     : Rs. ${vProfit.toLocaleString('en-IN')} (${vProfit >= 0 ? 'Profitable' : 'Deficit'})`,
+        ].join('\n');
+      }).join('\n\n')
+    : '  (No vehicles registered in fleet)';
+
+  // Per Customer Breakdown
+  const customersEnglish = db.customers.length > 0
+    ? db.customers.map((c, i) => {
+        const cTrips = db.trips.filter((t) => t.customerId === c.id);
+        const cFreight = cTrips.reduce((sum, t) => sum + (t.freightAmount || 0), 0);
+        const cAdvances = cTrips.reduce((sum, t) => sum + (t.advanceReceived || 0), 0);
+        const cPayments = db.tripPayments
+          .filter((p) => p.customerId === c.id)
+          .reduce((sum, p) => sum + (p.amount || 0), 0);
+        const cCollected = cAdvances + cPayments;
+        const cDue = Math.max(0, cFreight - cCollected);
+
+        return [
+          `Customer #${i + 1}: ${c.name} (${c.companyName || 'Individual Party'})`,
+          `  - Contact Person : ${c.contactPerson || c.name} | Phone: ${c.phone}`,
+          `  - GSTIN / Tax ID : ${c.gstin || 'Unregistered'}`,
+          `  - Total Trips    : ${cTrips.length} Trips`,
+          `  - Total Billed   : Rs. ${cFreight.toLocaleString('en-IN')}`,
+          `  - Cash Collected : Rs. ${cCollected.toLocaleString('en-IN')}`,
+          `  - Pending Dues   : Rs. ${cDue.toLocaleString('en-IN')} (${cDue === 0 ? 'Fully Cleared' : 'Payment Outstanding'})`,
+        ].join('\n');
+      }).join('\n\n')
+    : '  (No customers registered)';
+
+  // Per Driver Breakdown
+  const driversEnglish = db.drivers.length > 0
+    ? db.drivers.map((d, i) => {
+        const assignedVeh = db.vehicles.find((v) => v.id === d.assignedVehicleId || v.assignedDriverId === d.id);
+        const dPayments = db.salaryPayments.filter((sp) => sp.driverId === d.id);
+        const dPaid = dPayments.reduce((sum, sp) => sum + (sp.amount || 0), 0);
+        const dRecords = db.salaryRecords.filter((s) => s.driverId === d.id);
+        const dDue = dRecords.reduce((sum, s) => sum + (s.balanceDue || 0), 0);
+
+        return [
+          `Driver #${i + 1}: ${d.fullName}`,
+          `  - Contact Phone       : ${d.phone}`,
+          `  - Driving Licence (DL): ${d.dlNumber} (Valid up to: ${d.dlExpiryDate})`,
+          `  - Agreed Salary       : Rs. ${Number(d.agreedSalary || 0).toLocaleString('en-IN')} per month (${d.salaryType || 'monthly'})`,
+          `  - Assigned Vehicle    : ${assignedVeh ? `${assignedVeh.regNumber} - ${assignedVeh.name}` : 'Not assigned'}`,
+          `  - Total Disbursed     : Rs. ${dPaid.toLocaleString('en-IN')}`,
+          `  - Unpaid Dues Balance : Rs. ${dDue.toLocaleString('en-IN')} (${dDue === 0 ? 'No Dues Pending' : 'Salary Pending'})`,
+          `  - Account Status      : ${d.accountStatus === 'active' || d.accountStatus === 'approved' ? 'Active Working Driver' : d.accountStatus}`,
+        ].join('\n');
+      }).join('\n\n')
+    : '  (No drivers registered)';
+
+  // Assemble Complete Clean Note File
+  const content = [
+    '================================================================================',
+    '             VAHAN360 - FLEET TRANSACTIONS & BUSINESS NOTES',
+    '================================================================================',
+    `Business Name  : ${db.settings.businessName}`,
+    `Fleet Owner    : ${db.settings.ownerName || 'Transport Owner'}`,
+    `Contact Phone  : ${db.settings.phone || 'Not Provided'}`,
+    `Email Address  : ${db.settings.email || 'Not Provided'}`,
+    `Report Date    : ${formattedDate}`,
+    `Note File Name : ${filename}`,
+    `System Version : ${db.version}`,
+    '================================================================================',
+    '',
+    '--------------------------------------------------------------------------------',
+    '1. EXECUTIVE FINANCIAL & FLEET OVERVIEW',
+    '--------------------------------------------------------------------------------',
+    `• Registered Fleet Vehicles         : ${db.vehicles.length} Vehicles`,
+    `• Working Fleet Drivers             : ${db.drivers.length} Drivers`,
+    `• Commercial Trips Executed         : ${db.trips.length} Trips`,
+    `• Total Commercial Freight Billed   : Rs. ${totalFreight.toLocaleString('en-IN')}`,
+    `• Customer Cash Collected           : Rs. ${totalCollections.toLocaleString('en-IN')}`,
+    `• Customer Pending Receivables      : Rs. ${customerPending.toLocaleString('en-IN')}`,
+    `• Approved Fleet Operating Expenses : Rs. ${totalApprovedExpenses.toLocaleString('en-IN')}`,
+    `• Net Commercial Operating Profit   : Rs. ${netFleetProfit.toLocaleString('en-IN')}`,
+    `• Driver Salaries Disbursed         : Rs. ${totalSalariesPaid.toLocaleString('en-IN')}`,
+    `• Traffic Challan Fines Paid        : Rs. ${totalChallansPaid.toLocaleString('en-IN')}`,
+    `• Traffic Challan Fines Pending     : Rs. ${totalChallansPending.toLocaleString('en-IN')}`,
+    `• Net Fleet Cash Surplus (In - Out) : Rs. ${netCashSurplus.toLocaleString('en-IN')}`,
+    '',
+    '--------------------------------------------------------------------------------',
+    `2. CHRONOLOGICAL MASTER TRANSACTION LEDGER (${allTxns.length} Transactions)`,
+    '--------------------------------------------------------------------------------',
+    'Notice: Every transaction recorded in Vahan360 (customer freight billings, cash',
+    'advances, collections, vehicle fuel/toll expenses, driver salaries, servicing,',
+    'and traffic fines) is cataloged chronologically below.',
+    '--------------------------------------------------------------------------------',
+    '',
+    transactionsEnglish,
+    '',
+    '--------------------------------------------------------------------------------',
+    `3. FLEET VEHICLES & PER-TRUCK CONTRIBUTION (${db.vehicles.length} Vehicles)`,
+    '--------------------------------------------------------------------------------',
+    vehiclesEnglish,
+    '',
+    '--------------------------------------------------------------------------------',
+    `4. CUSTOMERS & OUTSTANDING RECEIVABLES (${db.customers.length} Parties)`,
+    '--------------------------------------------------------------------------------',
+    customersEnglish,
+    '',
+    '--------------------------------------------------------------------------------',
+    `5. DRIVER STAFF & PAYROLL REGISTER (${db.drivers.length} Drivers)`,
+    '--------------------------------------------------------------------------------',
+    driversEnglish,
+    '',
+    '================================================================================',
+    '               END OF VAHAN360 TRANSACTION NOTES & LEDGER',
+    '================================================================================',
+    `Generated for: ${db.settings.businessName} (${db.settings.ownerName || 'Admin'})`,
+    'This note file contains 100% human-readable business records with no encoded system data.',
+    'It can be viewed in Notepad, VS Code, or any mobile text reader for easy tracking.',
+    '================================================================================',
+  ].join('\n');
+
+  return { content, filename };
+}
+
 // Perform scheduled or manual server-side backup
 export function performServerBackup(type: 'scheduled_daily' | 'manual_txt'): BackupRecord {
   const db = getDatabase();
   const { content, filename, checksum } = generateFullTxtBackup(db);
+  const { content: notesContent, filename: notesFilename } = generateTransactionsNote(db);
 
   let fileSize = Buffer.byteLength(content, 'utf8');
 
   try {
     if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    
+    // 1. Write the official full disaster-recovery backup
     const filePath = path.join(BACKUPS_DIR, filename);
     fs.writeFileSync(filePath, content, 'utf8');
     fileSize = fs.statSync(filePath).size;
+
+    // 2. Write the clean human-readable transaction notes file
+    const notesFilePath = path.join(BACKUPS_DIR, notesFilename);
+    fs.writeFileSync(notesFilePath, notesContent, 'utf8');
+
+    // 3. Update the live latest transactions note file
+    const liveNotePath = path.join(BACKUPS_DIR, 'LATEST_TRANSACTIONS_NOTES.txt');
+    fs.writeFileSync(liveNotePath, notesContent, 'utf8');
   } catch {
     // Read-only filesystem (e.g. Vercel)
   }
@@ -368,7 +766,7 @@ export function performServerBackup(type: 'scheduled_daily' | 'manual_txt'): Bac
     status: 'success',
     checksum,
     storageLocation: `data/backups/${filename}`,
-    notes: `${type === 'scheduled_daily' ? 'Automated daily server backup' : 'Manual backup execution'}. Verified checksum.`,
+    notes: `${type === 'scheduled_daily' ? 'Automated daily server backup' : 'Manual backup execution'}. Verified checksum & saved transaction notes.`,
   };
 
   db.backups.unshift(record);
@@ -390,6 +788,14 @@ function cleanOldBackups(db: DatabaseSchema) {
         if (fs.existsSync(p)) {
           try {
             fs.unlinkSync(p);
+          } catch {}
+        }
+        // Also remove corresponding notes file
+        const notesFilename = item.filename.replace('Vahan360_Full_Backup_', 'Vahan360_Transaction_Notes_');
+        const notesPath = path.join(BACKUPS_DIR, notesFilename);
+        if (fs.existsSync(notesPath)) {
+          try {
+            fs.unlinkSync(notesPath);
           } catch {}
         }
       }
@@ -587,6 +993,15 @@ export async function generateDocumentsZip(): Promise<Buffer> {
     zip.file(`database/${txtBackup.filename}`, txtBackup.content);
   } catch (err) {
     console.error('Error adding TXT backup to ZIP:', err);
+  }
+
+  // 2.5 Clean Human-Readable Transaction Notes (.txt)
+  try {
+    const notes = generateTransactionsNote(db);
+    zip.file(`reports/${notes.filename}`, notes.content);
+    zip.file('reports/LATEST_TRANSACTIONS_NOTES.txt', notes.content);
+  } catch (err) {
+    console.error('Error adding transaction notes to ZIP:', err);
   }
 
   // 3. Sanitized JSON Database Snapshot (.json)
