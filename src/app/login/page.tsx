@@ -74,14 +74,20 @@ export default function LoginPage() {
       }
 
       if (data.status === 'pending_approval') {
-        router.push('/approval-pending');
+        window.location.href = '/approval-pending';
         return;
       }
 
+      // Read redirect query parameter if user was redirected from a protected route
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTarget = urlParams.get('redirect');
+
       if (data.role === 'admin') {
-        router.push('/admin');
+        const destination = (redirectTarget && redirectTarget.startsWith('/admin')) ? redirectTarget : '/admin';
+        window.location.href = destination;
       } else {
-        router.push('/driver/dashboard');
+        const destination = (redirectTarget && redirectTarget.startsWith('/driver')) ? redirectTarget : '/driver/dashboard';
+        window.location.href = destination;
       }
     } catch {
       setError('Connection error. Please ensure the server is running.');

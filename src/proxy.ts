@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import crypto from 'crypto';
 
 const SESSION_COOKIE_NAME = 'vahan360_session';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'vahan360-fleet-secure-key-2026-prod-jwt-secret';
@@ -15,9 +16,27 @@ function verifyToken(token: string): SessionPayload | null {
   try {
     const [base64, signature] = token.split('.');
     if (!base64 || !signature) return null;
-    const expectedSignature = Buffer.from(`${base64}:${SESSION_SECRET}`).toString('base64');
-    if (signature !== expectedSignature) return null;
-    const jsonStr = Buffer.from(base64, 'base64').toString('utf-8');
+
+    // Check HMAC-SHA256 signature
+    const hmacExpected = crypto.createHmac('sha256', SESSION_SECRET).update(base64).digest('base64url');
+    let isValid = false;
+
+    const sigBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(hmacExpected);
+    if (sigBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+      isValid = true;
+    } else {
+      // Legacy fallback check for seamless migration
+      const legacyExpected = Buffer.from(`${base64}:${SESSION_SECRET}`).toString('base64');
+      if (signature === legacyExpected) {
+        isValid = true;
+      }
+    }
+
+    if (!isValid) return null;
+
+    // Decode base64 or base64url payload
+    const jsonStr = Buffer.from(base64, 'base64url').toString('utf-8');
     const payload = JSON.parse(jsonStr) as SessionPayload;
     if (Date.now() > payload.expiresAt) return null;
     return payload;
