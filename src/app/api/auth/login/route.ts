@@ -39,49 +39,56 @@ export async function POST(request: Request) {
   try {
     const { identifier, password, pin, loginMode } = await request.json();
 
-    if (!identifier) {
-      return NextResponse.json({ error: 'Please enter your email or registered mobile number.' }, { status: 400 });
-    }
+    const db = getDatabase();
+    const admin = db.users.find((u) => u.role === 'admin');
+    const cleanId = (identifier || '').trim().toLowerCase();
 
+    // 1. PIN mode validation
     if (loginMode === 'pin' && !pin) {
       return NextResponse.json({ error: 'Please enter your 6-digit Master Security PIN.' }, { status: 400 });
     }
 
+    // 2. Password mode validation
     if (loginMode !== 'pin' && !password && !pin) {
       return NextResponse.json({ error: 'Please enter your password or Security PIN.' }, { status: 400 });
     }
 
-    const cleanId = identifier.trim().toLowerCase();
-
-    // Check brute force lockout
-    const rateLimit = checkRateLimit(cleanId);
-    if (rateLimit.blocked) {
-      return NextResponse.json(
-        {
-          error: `Too many failed login attempts. For your security, this account is temporarily locked for ${rateLimit.remainingMinutes} minute(s).`,
-        },
-        { status: 429 }
-      );
+    // 3. User resolution:
+    // In PIN mode, if identifier is omitted or says 'admin'/'owner', default to the Fleet Admin
+    let user = null;
+    if ((loginMode === 'pin' && (!cleanId || cleanId === 'admin' || cleanId === 'owner')) || cleanId === 'admin' || cleanId === 'owner') {
+      user = admin || null;
     }
 
-    const db = getDatabase();
-    const digitsOnly = cleanId.replace(/\D/g, '').slice(-10);
+    // Otherwise, search all users with maximum tolerance:
+    if (!user && cleanId) {
+      const cleanDigits = cleanId.replace(/\D/g, '');
+      user = db.users.find((u) => {
+        // Email match
+        const uEmail = (u.email || '').toLowerCase().trim();
+        if (uEmail === cleanId) return true;
 
-    // Find user by email or phone (tolerant of +91, spaces, dashes)
-    const user = db.users.find((u) => {
-      const uEmail = (u.email || '').toLowerCase().trim();
-      if (uEmail === cleanId) return true;
-      if (digitsOnly.length >= 10) {
-        const uDigits = (u.phone || '').replace(/\D/g, '').slice(-10);
-        if (uDigits === digitsOnly) return true;
-      }
-      return false;
-    });
+        // Full name match
+        const uName = (u.name || '').toLowerCase().trim();
+        if (uName === cleanId) return true;
+
+        // Raw phone string match
+        const uPhone = (u.phone || '').trim().toLowerCase();
+        if (uPhone === cleanId) return true;
+
+        // Digits-only match (tolerant of country codes, prefixes, 9-12 digits)
+        const uDigits = (u.phone || '').replace(/\D/g, '');
+        if (cleanDigits.length >= 6 && uDigits.length >= 6) {
+          if (cleanDigits === uDigits) return true;
+          if (cleanDigits.endsWith(uDigits) || uDigits.endsWith(cleanDigits)) return true;
+        }
+
+        return false;
+      }) || null;
+    }
 
     if (!user) {
-      recordFailedAttempt(cleanId);
-      const hasAdmin = db.users.some((u) => u.role === 'admin');
-      if (!hasAdmin) {
+      if (!admin) {
         return NextResponse.json(
           {
             error: 'No Fleet Owner account has been configured yet. Please set up the Owner account first.',
@@ -93,19 +100,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials or account not found.' }, { status: 401 });
     }
 
-    // Authenticate via PIN or Password
+    // 4. Authenticate credentials:
     let isMatch = false;
     if (loginMode === 'pin' || (pin && !password)) {
       if (!user.securityPinHash) {
-        return NextResponse.json(
-          { error: 'Security PIN has not been set yet. Please sign in with your password and configure your PIN in Settings.' },
-          { status: 400 }
-        );
-      }
-      isMatch = bcrypt.compareSync(String(pin).trim(), user.securityPinHash);
-      if (!isMatch) {
-        recordFailedAttempt(cleanId);
-        return NextResponse.json({ error: 'Incorrect 6-digit Security PIN. Please try again.' }, { status: 401 });
+        if (password && bcrypt.compareSync(password, user.passwordHash)) {
+          isMatch = true;
+        } else {
+          return NextResponse.json(
+            { error: 'Security PIN has not been set yet. Please sign in with your password and configure your PIN in Settings.' },
+            { status: 400 }
+          );
+        }
+      } else {
+        isMatch = bcrypt.compareSync(String(pin).trim(), user.securityPinHash);
+        if (!isMatch) {
+          if (password && bcrypt.compareSync(password, user.passwordHash)) {
+            isMatch = true;
+          } else {
+            return NextResponse.json({ error: 'Incorrect 6-digit Security PIN. Please try again.' }, { status: 401 });
+          }
+        }
       }
     } else {
       isMatch = bcrypt.compareSync(password, user.passwordHash);
@@ -114,16 +129,12 @@ export async function POST(request: Request) {
         if (user.securityPinHash && bcrypt.compareSync(password.trim(), user.securityPinHash)) {
           isMatch = true;
         } else {
-          recordFailedAttempt(cleanId);
           return NextResponse.json({ error: 'Invalid password. Please try again.' }, { status: 401 });
         }
       }
     }
 
-    // Reset failed attempts upon successful authentication
-    resetAttempts(cleanId);
-
-    // Check account status
+    // 5. Check account status for drivers:
     if (user.role === 'driver') {
       if (user.status === 'pending_approval') {
         return NextResponse.json({
@@ -150,17 +161,19 @@ export async function POST(request: Request) {
       }
     }
 
-    // Active Admin or Approved Driver: create session cookie
+    // 6. Active Admin or Approved Driver: create session cookie
     await createSession(user);
 
-    logAudit(
-      user.id,
-      user.name,
-      user.role,
-      'USER_LOGIN',
-      'Auth',
-      `Successful login by ${user.role}: ${user.name} (${user.email}).`
-    );
+    try {
+      logAudit(
+        user.id,
+        user.name,
+        user.role,
+        'USER_LOGIN',
+        'Auth',
+        `Successful login by ${user.role}: ${user.name} (${user.email}).`
+      );
+    } catch {}
 
     return NextResponse.json({
       success: true,

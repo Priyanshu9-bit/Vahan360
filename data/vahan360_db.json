@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "updatedAt": "2026-10-24T13:48:17.289Z",
+  "updatedAt": "2026-10-24T14:03:06.583Z",
   "settings": {
     "id": "biz_01",
     "businessName": "Nayak Transport",
@@ -196,6 +196,36 @@
   ],
   "backups": [],
   "auditLogs": [
+    {
+      "id": "aud_1792850586583_2f41",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "details": "Successful login by admin: Sushanta Nayak (sushantan34@gmail.com).",
+      "createdAt": "2026-10-24T14:03:06.583Z"
+    },
+    {
+      "id": "aud_1792850586481_bepj",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "details": "Successful login by admin: Sushanta Nayak (sushantan34@gmail.com).",
+      "createdAt": "2026-10-24T14:03:06.481Z"
+    },
+    {
+      "id": "aud_1792850586364_xc9e",
+      "userId": "usr_admin_1792834655097",
+      "userName": "Sushanta Nayak",
+      "userRole": "admin",
+      "action": "USER_LOGIN",
+      "entityType": "Auth",
+      "details": "Successful login by admin: Sushanta Nayak (sushantan34@gmail.com).",
+      "createdAt": "2026-10-24T14:03:06.364Z"
+    },
     {
       "id": "aud_1792849697286_h605",
       "userId": "usr_drv_1792849697285",
